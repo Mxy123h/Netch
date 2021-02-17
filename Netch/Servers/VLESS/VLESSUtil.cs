@@ -12,7 +12,7 @@ namespace Netch.Servers.VLESS
         public string TypeName { get; } = "VLESS";
         public string FullName { get; } = "VLESS";
         public string ShortName { get; } = "VL";
-        public string[] UriScheme { get; } = { };
+        public string[] UriScheme { get; } = {"vless"};
 
         public Server ParseJObject(in JObject j)
         {
@@ -29,20 +29,19 @@ namespace Netch.Servers.VLESS
             new VLESSForm.VLESSForm().ShowDialog();
         }
 
-        public string GetShareLink(Server server)
+        public string GetShareLink(Server s)
         {
-            // TODO
-            return "";
+            return V2rayUtils.GetVShareLink(s, "vless");
         }
 
         public IServerController GetController()
         {
-            return new V2RayController();
+            return new V2rayController();
         }
 
         public IEnumerable<Server> ParseUri(string text)
         {
-            throw new System.NotImplementedException();
+            return V2rayUtils.ParseVUri(text);
         }
 
         public bool CheckServer(Server s)
