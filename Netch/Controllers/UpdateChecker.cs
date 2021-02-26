@@ -19,7 +19,7 @@ namespace Netch.Controllers
         public const string Name = @"Netch";
         public const string Copyright = @"Copyright © 2019 - 2021";
 
-        public const string AssemblyVersion = @"1.7.4";
+        public const string AssemblyVersion = @"1.7.6";
         private const string Suffix = @"";
 
         public static readonly string Version = $"{AssemblyVersion}{(string.IsNullOrEmpty(Suffix) ? "" : $"-{Suffix}")}";
@@ -29,7 +29,9 @@ namespace Netch.Controllers
         public static Release LatestRelease;
 
         public static event EventHandler NewVersionFound;
+
         public static event EventHandler NewVersionFoundFailed;
+
         public static event EventHandler NewVersionNotFound;
 
         public static async void Check(bool isPreRelease)

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Netch.Controllers;
@@ -8,15 +10,21 @@ namespace Netch.Servers.Shadowsocks
 {
     public class SSController : Guard, IServerController
     {
-        public override string Name { get; } = "Shadowsocks";
-        public override string MainFile { get; protected set; } = "Shadowsocks.exe";
-
-        public ushort? Socks5LocalPort { get; set; }
-        public string LocalAddress { get; set; }
-
         public bool DllFlag;
 
-        public bool Start(in Server s, in Mode mode)
+        public override string MainFile { get; protected set; } = "Shadowsocks.exe";
+
+        protected override IEnumerable<string> StartedKeywords { get; } = new[] {"listening at"};
+
+        protected override IEnumerable<string> StoppedKeywords { get; } = new[] {"Invalid config path", "usage", "plugin service exit unexpectedly"};
+
+        public override string Name { get; } = "Shadowsocks";
+
+        public ushort? Socks5LocalPort { get; set; }
+
+        public string LocalAddress { get; set; }
+
+        public void Start(in Server s, in Mode mode)
         {
             var server = (Shadowsocks) s;
 
@@ -33,8 +41,7 @@ namespace Netch.Servers.Shadowsocks
                 if (!ShadowsocksDLL.Info(client, remote, passwd, method))
                 {
                     State = State.Stopped;
-                    Logging.Error("DLL SS INFO 设置失败！");
-                    return false;
+                    throw new MessageException("DLL SS INFO 设置失败！");
                 }
 
                 Logging.Info("DLL SS INFO 设置成功！");
@@ -42,35 +49,29 @@ namespace Netch.Servers.Shadowsocks
                 if (!ShadowsocksDLL.Start())
                 {
                     State = State.Stopped;
-                    Logging.Error("DLL SS 启动失败！");
-                    return false;
+                    throw new MessageException("DLL SS 启动失败！");
                 }
 
                 Logging.Info("DLL SS 启动成功！");
                 State = State.Started;
-                return true;
+                return;
             }
 
             #region Argument
 
             var argument = new StringBuilder();
-            argument.Append(
-                $"-s {server.AutoResolveHostname()} " +
-                $"-p {server.Port} " +
-                $"-b {this.LocalAddress()} " +
-                $"-l {this.Socks5LocalPort()} " +
-                $"-m {server.EncryptMethod} " +
-                $"-k \"{server.Password}\" " +
-                "-u ");
+            argument.Append($"-s {server.AutoResolveHostname()} " + $"-p {server.Port} " + $"-b {this.LocalAddress()} " +
+                            $"-l {this.Socks5LocalPort()} " + $"-m {server.EncryptMethod} " + $"-k \"{server.Password}\" " + "-u");
+
             if (!string.IsNullOrWhiteSpace(server.Plugin) && !string.IsNullOrWhiteSpace(server.PluginOption))
-                argument.Append($"--plugin {server.Plugin} " +
-                                $"--plugin-opts \"{server.PluginOption}\"");
+                argument.Append($" --plugin {server.Plugin}" + $" --plugin-opts \"{server.PluginOption}\"");
+
             if (mode.BypassChina)
-                argument.Append(" --acl default.acl");
+                argument.Append($" --acl \"{Path.GetFullPath(File.Exists(Global.UserACL) ? Global.UserACL : Global.BuiltinACL)}\"");
 
             #endregion
 
-            return StartInstanceAuto(argument.ToString());
+            StartInstanceAuto(argument.ToString());
         }
 
         public override void Stop()

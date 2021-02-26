@@ -48,17 +48,17 @@ namespace Netch.Controllers
 
         public string Name { get; } = "Redirector";
 
-        public bool Start(in Mode mode)
+        public void Start(in Mode mode)
         {
-            if (!CheckDriver())
-                return false;
+            CheckDriver();
 
             #region aio_dial
 
             aio_dial((int) NameList.TYPE_FILTERLOOPBACK, "false");
             aio_dial((int) NameList.TYPE_TCPLISN, Global.Settings.RedirectorTCPPort.ToString());
 
-            if (Global.Settings.ProcessNoProxyForUdp && Global.Settings.ProcessNoProxyForTcp) MessageBoxX.Show("？");
+            if (Global.Settings.ProcessNoProxyForUdp && Global.Settings.ProcessNoProxyForTcp)
+                MessageBoxX.Show("？");
 
             //UDP
             if (Global.Settings.ProcessNoProxyForUdp)
@@ -85,10 +85,7 @@ namespace Netch.Controllers
             }
 
             if (!CheckRule(mode.FullRule, out var list))
-            {
-                MessageBoxX.Show($"\"{string.Join("", list.Select(s => s + "\n"))}\" does not conform to C++ regular expression syntax");
-                return false;
-            }
+                throw new MessageException($"\"{string.Join("", list.Select(s => s + "\n"))}\" does not conform to C++ regular expression syntax");
 
             SetName(mode);
 
@@ -100,10 +97,12 @@ namespace Netch.Controllers
                 _sysDns = DNS.OutboundDNS;
                 if (string.IsNullOrWhiteSpace(Global.Settings.ModifiedDNS))
                     Global.Settings.ModifiedDNS = "1.1.1.1,8.8.8.8";
+
                 DNS.OutboundDNS = Global.Settings.ModifiedDNS;
             }
 
-            return aio_init();
+            if (!aio_init())
+                throw new MessageException("Redirector Start failed, run Netch with \"-console\" argument");
         }
 
         public void Stop()
@@ -141,6 +140,7 @@ namespace Netch.Controllers
             {
                 if (r.StartsWith("!"))
                     return aio_dial((int) NameList.TYPE_ADDNAME, r.Substring(1));
+
                 return aio_dial((int) NameList.TYPE_ADDNAME, r);
             }
             finally
@@ -150,7 +150,7 @@ namespace Netch.Controllers
             }
         }
 
-        private static bool CheckDriver()
+        private static void CheckDriver()
         {
             var binFileVersion = Utils.Utils.GetFileVersion(BinDriver);
             var systemFileVersion = Utils.Utils.GetFileVersion(SystemDriver);
@@ -158,50 +158,34 @@ namespace Netch.Controllers
             Logging.Info("内置驱动版本: " + binFileVersion);
             Logging.Info("系统驱动版本: " + systemFileVersion);
 
-            if (!File.Exists(BinDriver))
+            if (!File.Exists(SystemDriver))
             {
-                Logging.Warning("内置驱动不存在");
-                if (File.Exists(SystemDriver))
-                {
-                    Logging.Warning("使用系统驱动");
-                    return true;
-                }
-
-                Logging.Error("未安装驱动");
-                return false;
+                InstallDriver();
+                return;
             }
 
-            if (!File.Exists(SystemDriver))
-                return InstallDriver();
-
-            var updateFlag = false;
-
+            var reinstallFlag = false;
             if (Version.TryParse(binFileVersion, out var binResult) && Version.TryParse(systemFileVersion, out var systemResult))
             {
                 if (binResult.CompareTo(systemResult) > 0)
-                {
                     // Bin greater than Installed
-                    updateFlag = true;
-                }
-                else
-                {
-                    // Installed greater than Bin
-                    if (systemResult.Major != binResult.Major)
-                        // API breaking changes
-                        updateFlag = true;
-                }
+                    reinstallFlag = true;
+                else if (systemResult.Major != binResult.Major)
+                    // Installed greater than Bin but Major Version Difference (has breaking changes), do downgrade
+                    reinstallFlag = true;
             }
             else
             {
                 if (!systemFileVersion.Equals(binFileVersion))
-                    updateFlag = true;
+                    reinstallFlag = true;
             }
 
-            if (!updateFlag) return true;
+            if (!reinstallFlag)
+                return;
 
             Logging.Info("更新驱动");
             UninstallDriver();
-            return InstallDriver();
+            InstallDriver();
         }
 
         private void SetServer(in PortType portType)
@@ -321,9 +305,13 @@ namespace Netch.Controllers
         ///     安装 NF 驱动
         /// </summary>
         /// <returns>驱动是否安装成功</returns>
-        public static bool InstallDriver()
+        public static void InstallDriver()
         {
             Logging.Info("安装 NF 驱动");
+
+            if (!File.Exists(BinDriver))
+                throw new MessageException(i18N.Translate("builtin driver files missing, can't install NF driver"));
+
             try
             {
                 File.Copy(BinDriver, SystemDriver);
@@ -331,7 +319,7 @@ namespace Netch.Controllers
             catch (Exception e)
             {
                 Logging.Error("驱动复制失败\n" + e);
-                return false;
+                throw new MessageException($"Copy NF driver file failed\n{e.Message}");
             }
 
             Global.MainForm.StatusText(i18N.Translate("Register driver"));
@@ -344,10 +332,8 @@ namespace Netch.Controllers
             else
             {
                 Logging.Error($"注册驱动失败，返回值：{result}");
-                return false;
+                throw new MessageException($"Register NF driver failed\n{result}");
             }
-
-            return true;
         }
 
         /// <summary>
@@ -370,7 +356,9 @@ namespace Netch.Controllers
                 // ignored
             }
 
-            if (!File.Exists(SystemDriver)) return true;
+            if (!File.Exists(SystemDriver))
+                return true;
+
             NFAPI.nf_unRegisterDriver("netfilter2");
             File.Delete(SystemDriver);
 

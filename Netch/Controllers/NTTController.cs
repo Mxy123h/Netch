@@ -1,20 +1,27 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Netch.Utils;
 
 namespace Netch.Controllers
 {
     public class NTTController : Guard, IController
     {
-        public override string Name { get; } = "NTT";
         public override string MainFile { get; protected set; } = "NTT.exe";
+
+        public override string Name { get; } = "NTT";
+
+        public override void Stop()
+        {
+            StopInstance();
+        }
 
         /// <summary>
         ///     启动 NatTypeTester
         /// </summary>
         /// <returns></returns>
-        public (string, string, string) Start()
+        public async Task<(string, string, string)> Start()
         {
             string localEnd = null;
             string publicEnd = null;
@@ -24,24 +31,34 @@ namespace Netch.Controllers
             try
             {
                 InitInstance($" {Global.Settings.STUN_Server} {Global.Settings.STUN_Server_Port}");
-                Instance.OutputDataReceived += OnOutputDataReceived;
-                Instance.ErrorDataReceived += OnOutputDataReceived;
                 Instance.Start();
-                var output = Instance.StandardOutput.ReadToEnd();
+
+                var output = await Instance.StandardOutput.ReadToEndAsync();
+                var error = await Instance.StandardError.ReadToEndAsync();
+
                 try
                 {
-                    File.WriteAllText(Path.Combine(Global.NetchDir, $"logging\\{Name}.log"), output);
+                    File.WriteAllText(Path.Combine(Global.NetchDir, $"logging\\{Name}.log"), $"{output}\r\n{error}");
                 }
                 catch (Exception e)
                 {
                     Logging.Warning($"写入 {Name} 日志错误：\n" + e.Message);
                 }
 
+                if (output.IsNullOrWhiteSpace())
+                    if (!error.IsNullOrWhiteSpace())
+                    {
+                        error = error.Trim();
+                        var errorFirst = error.Substring(0, error.IndexOf('\n')).Trim();
+                        return (errorFirst.SplitTrimEntries(':').Last(), null, null);
+                    }
+
                 foreach (var line in output.Split('\n'))
                 {
-                    var str = line.Split(':').Select(s => s.Trim()).ToArray();
+                    var str = line.SplitTrimEntries(':');
                     if (str.Length < 2)
                         continue;
+
                     var key = str[0];
                     var value = str[1];
                     switch (key)
@@ -62,14 +79,12 @@ namespace Netch.Controllers
                         case "result":
                             result = value;
                             break;
-                        default:
-                            result = str.Last();
-                            break;
                     }
                 }
 
                 if (bindingTest == "Fail")
-                    result = "UdpBlocked";
+                    result = "Fail";
+
                 return (result, localEnd, publicEnd);
             }
             catch (Exception e)
@@ -86,11 +101,6 @@ namespace Netch.Controllers
 
                 return (null, null, null);
             }
-        }
-
-        public override void Stop()
-        {
-            StopInstance();
         }
     }
 }

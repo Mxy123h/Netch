@@ -61,7 +61,7 @@ namespace Netch.Models
 
     public class V2rayConfig
     {
-        public bool AllowInsecure = true;
+        public bool AllowInsecure = false;
 
         public KcpConfig KcpConfig = new();
 
@@ -199,6 +199,11 @@ namespace Netch.Models
         public List<Profile> Profiles = new();
 
         /// <summary>
+        ///     配置最大列数
+        /// </summary>
+        public byte ProfileTableColumnCount = 5;
+
+        /// <summary>
         ///     是否使用RDR内置SS
         /// </summary>
         public bool RedirectorSS = false;
@@ -289,6 +294,7 @@ namespace Netch.Models
         public bool UseProxyToUpdateSubscription = false;
 
         public V2rayConfig V2RayConfig = new();
+
         public Setting Clone()
         {
             return (Setting) MemberwiseClone();

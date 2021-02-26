@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using Netch.Controllers;
 using Netch.Models;
@@ -7,20 +8,22 @@ namespace Netch.Servers.V2ray
 {
     public class V2rayController : Guard, IServerController
     {
-        public V2rayController()
-        {
-            StartedKeywords.Add("started");
-            StoppedKeywords.AddRange(new[] {"config file not readable", "failed to"});
-        }
         public override string MainFile { get; protected set; } = "xray.exe";
 
+        protected override IEnumerable<string> StartedKeywords { get; } = new[] {"started"};
+
+        protected override IEnumerable<string> StoppedKeywords { get; } = new[] {"config file not readable", "failed to"};
+
         public override string Name { get; } = "Xray";
+
         public ushort? Socks5LocalPort { get; set; }
+
         public string LocalAddress { get; set; }
-        public virtual bool Start(in Server s, in Mode mode)
+
+        public virtual void Start(in Server s, in Mode mode)
         {
             File.WriteAllText("data\\last.json", V2rayConfigUtils.GenerateClientConfig(s, mode));
-            return StartInstanceAuto("-config ..\\data\\last.json");
+            StartInstanceAuto("-config ..\\data\\last.json");
         }
 
         public override void Stop()

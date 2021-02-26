@@ -28,37 +28,30 @@ namespace Netch.Controllers
         /// </summary>
         public DNSController DNSController = new();
 
-        public TUNTAPController()
-        {
-            StartedKeywords.Add("Running");
-            StoppedKeywords.AddRange(new[] {"failed", "invalid vconfig file"});
-        }
+        protected override IEnumerable<string> StartedKeywords { get; } = new[] {"Running"};
+
+        protected override IEnumerable<string> StoppedKeywords { get; } = new[] {"failed", "invalid vconfig file"};
+
         public override string MainFile { get; protected set; } = "tun2socks.exe";
+
+        protected override Encoding InstanceOutputEncoding { get; } = Encoding.UTF8;
 
         public override string Name { get; } = "tun2socks";
 
-        public bool Start(in Mode mode)
+        public void Start(in Mode mode)
         {
             var server = MainController.Server;
             // 查询服务器 IP 地址
             _serverAddresses = DNS.Lookup(server.Hostname);
 
             // 查找出口适配器
-            if (!Utils.Utils.SearchOutboundAdapter())
-                return false;
+            Utils.Utils.SearchOutboundAdapter();
 
             // 查找并安装 TAP 适配器
-            if (!SearchTapAdapter())
-            {
-                if (!AddTap())
-                {
-                    Logging.Error("Tap 适配器安装失败");
-                    return false;
-                }
+            if (string.IsNullOrEmpty(TUNTAP.GetComponentID()))
+                AddTap();
 
-                SearchTapAdapter();
-            }
-
+            SearchTapAdapter();
 
             SetupRouteTable(mode);
 
@@ -79,14 +72,9 @@ namespace Netch.Controllers
             }
             else
             {
-                if (!MainController.PortCheckAndShowMessageBox(53, "DNS"))
-                    return false;
+                MainController.PortCheck(53, "DNS");
 
-                if (!DNSController.Start())
-                {
-                    Logging.Error("AioDNS 启动失败");
-                    return false;
-                }
+                DNSController.Start();
 
                 dns = "127.0.0.1";
             }
@@ -103,7 +91,7 @@ namespace Netch.Controllers
             if (Global.Settings.TUNTAP.UseFakeDNS && Global.Flags.SupportFakeDns)
                 argument.Append("-fakeDns ");
 
-            return StartInstanceAuto(argument.ToString(), ProcessPriorityClass.RealTime);
+            StartInstanceAuto(argument.ToString(), ProcessPriorityClass.RealTime);
         }
 
         /// <summary>
@@ -117,6 +105,7 @@ namespace Netch.Controllers
                 Task.Run(ClearRouteTable),
                 Task.Run(DNSController.Stop)
             };
+
             Task.WaitAll(tasks);
         }
 
@@ -160,9 +149,7 @@ namespace Netch.Controllers
                     {
                         Logging.Info("代理 → 自定义 DNS");
                         if (Global.Settings.TUNTAP.UseCustomDNS)
-                            RouteAction(Action.Create,
-                                Global.Settings.TUNTAP.DNS.Select(ip => $"{ip}/32"),
-                                RouteType.TUNTAP);
+                            RouteAction(Action.Create, Global.Settings.TUNTAP.DNS.Select(ip => $"{ip}/32"), RouteType.TUNTAP);
                         else
                             RouteAction(Action.Create,
                                 new[] {"1.1.1.1", "8.8.8.8", "9.9.9.9", "185.222.222.222"}.Select(ip => $"{ip}/32"),
@@ -175,14 +162,13 @@ namespace Netch.Controllers
 
                     // 将 TUN/TAP 网卡权重放到最高
                     Process.Start(new ProcessStartInfo
-                        {
-                            FileName = "netsh",
-                            Arguments = $"interface ip set interface {Global.TUNTAP.Index} metric=0",
-                            WindowStyle = ProcessWindowStyle.Hidden,
-                            UseShellExecute = true,
-                            CreateNoWindow = true
-                        }
-                    );
+                    {
+                        FileName = "netsh",
+                        Arguments = $"interface ip set interface {Global.TUNTAP.Index} metric=0",
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        UseShellExecute = true,
+                        CreateNoWindow = true
+                    });
 
                     Logging.Info("绕行 → 规则 IP");
                     RouteAction(Action.Create, mode.FullRule, RouteType.Outbound);
@@ -235,7 +221,7 @@ namespace Netch.Controllers
         /// <summary>
         ///     搜索出口和TUNTAP适配器
         /// </summary>
-        public static bool SearchTapAdapter()
+        public static void SearchTapAdapter()
         {
             Global.TUNTAP.Adapter = null;
             Global.TUNTAP.Index = -1;
@@ -244,31 +230,16 @@ namespace Netch.Controllers
             // 搜索 TUN/TAP 适配器的索引
             if (string.IsNullOrEmpty(Global.TUNTAP.ComponentID))
             {
-                Logging.Info("TAP 适配器未安装");
-                return false;
+                const string s = "TAP 适配器未安装";
+                Logging.Info(s);
+                throw new Exception(s);
             }
 
             // 根据 ComponentID 寻找 Tap适配器
-            try
-            {
-                var adapter = NetworkInterface.GetAllNetworkInterfaces().First(_ => _.Id == Global.TUNTAP.ComponentID);
-                Global.TUNTAP.Adapter = adapter;
-                Global.TUNTAP.Index = adapter.GetIPProperties().GetIPv4Properties().Index;
-                Logging.Info(
-                    $"TAP 适配器：{adapter.Name} {adapter.Id} {adapter.Description}, index: {Global.TUNTAP.Index}");
-                return true;
-            }
-            catch (Exception e)
-            {
-                var msg = e switch
-                {
-                    InvalidOperationException _ => $"找不到标识符为 {Global.TUNTAP.ComponentID} 的 TAP 适配器: {e.Message}",
-                    NetworkInformationException _ => $"获取 Tap 适配器信息错误: {e.Message}",
-                    _ => $"Tap 适配器其他异常: {e}"
-                };
-                Logging.Error(msg);
-                return false;
-            }
+            var adapter = NetworkInterface.GetAllNetworkInterfaces().First(_ => _.Id == Global.TUNTAP.ComponentID);
+            Global.TUNTAP.Adapter = adapter;
+            Global.TUNTAP.Index = adapter.GetIPProperties().GetIPv4Properties().Index;
+            Logging.Info($"TAP 适配器：{adapter.Name} {adapter.Id} {adapter.Description}, index: {Global.TUNTAP.Index}");
         }
 
         private static bool AddTap()
@@ -278,15 +249,15 @@ namespace Netch.Controllers
             Thread.Sleep(1000);
             if (string.IsNullOrEmpty(Global.TUNTAP.ComponentID = TUNTAP.GetComponentID()))
             {
-                Logging.Error("找不到 TAP 适配器，驱动可能安装失败");
-                return false;
+                const string s = "TAP 驱动安装失败，找不到 ComponentID 注册表项";
+                Logging.Error(s);
+                throw new Exception(s);
             }
 
             return true;
         }
 
-        private void RouteAction(Action action, in IEnumerable<string> ipNetworks, RouteType routeType,
-            int metric = 0)
+        private void RouteAction(Action action, in IEnumerable<string> ipNetworks, RouteType routeType, int metric = 0)
         {
             foreach (var address in ipNetworks)
                 RouteAction(action, address, routeType, metric);

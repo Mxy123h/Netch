@@ -8,6 +8,8 @@ namespace Netch.Utils
     {
         public const string LogFile = "logging\\application.log";
 
+        private static readonly object FileLock = new();
+
         /// <summary>
         ///     信息
         /// </summary>
@@ -35,14 +37,17 @@ namespace Netch.Utils
             Write(text, LogLevel.ERROR);
         }
 
-        private static readonly object FileLock = new object();
-
         private static void Write(string text, LogLevel logLevel)
         {
-            lock (FileLock)
+            var contents = $@"[{DateTime.Now}][{logLevel.ToString()}] {text}{Global.EOF}";
+            if (Global.Testing)
             {
-                File.AppendAllText(LogFile, $@"[{DateTime.Now}][{logLevel.ToString()}] {text}{Global.EOF}");
+                Console.WriteLine(contents);
+                return;
             }
+
+            lock (FileLock)
+                File.AppendAllText(LogFile, contents);
         }
     }
 }

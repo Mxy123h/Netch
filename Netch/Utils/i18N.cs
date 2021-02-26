@@ -12,60 +12,67 @@ namespace Netch.Utils
 {
     public static class i18N
     {
+#if NET
+        static i18N()
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+#endif
+
         /// <summary>
         ///     数据
         /// </summary>
-        public static Hashtable Data = new Hashtable();
+        public static Hashtable Data = new();
 
         public static string LangCode { get; private set; }
 
         /// <summary>
         ///     加载
         /// </summary>
-        /// <param name="langCode">语言代码</param>
-        public static void Load(string langCode)
+        /// <param name="value">语言代码</param>
+        public static void Load(string value)
         {
-            LangCode = langCode;
+            string text;
+            var languages = GetTranslateList().Skip(1).ToList();
 
-            var text = "";
-            if (langCode.Equals("System"))
+            LangCode = value.Equals("System") ? CultureInfo.CurrentCulture.Name : value;
+
+            if (!languages.Contains(LangCode))
             {
-                // 加载系统语言
-                langCode = CultureInfo.CurrentCulture.Name;
+                var oldLangCode = LangCode;
+                LangCode = languages.FirstOrDefault(s => GetLanguage(s).Equals(GetLanguage(LangCode))) ?? "en-US";
+                Logging.Info($"找不到语言 {oldLangCode}, 使用 {LangCode}");
             }
 
-            if (langCode == "zh-CN")
+            switch (LangCode)
             {
-                // 尝试加载内置中文语言
-                text = Encoding.UTF8.GetString(Resources.zh_CN);
+                case "en-US":
+                    Data.Clear();
+                    return;
+                case "zh-CN":
+                    text = Encoding.UTF8.GetString(Resources.zh_CN);
+                    break;
+                default:
+                    text = File.ReadAllText($"i18n\\{LangCode}");
+                    break;
             }
-            else if (langCode.Equals("en-US"))
-            {
-                // 清除得到英文
-                Data.Clear();
+
+            var dictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(text);
+
+            if (dictionary == null)
                 return;
-            }
-            else if (File.Exists($"i18n\\{langCode}"))
-            {
-                // 从外置文件中加载语言
-                text = File.ReadAllText($"i18n\\{langCode}");
-            }
-            else
-            {
-                Logging.Error($"无法找到语言 {langCode}, 使用系统语言");
-                // 加载系统语言
-                LangCode = CultureInfo.CurrentCulture.Name;
-            }
-
-            var data = JsonConvert.DeserializeObject<Dictionary<string, string>>(text);
-
-            if (data == null) return;
 
             Data = new Hashtable();
-            foreach (var v in data)
-            {
+            foreach (var v in dictionary)
                 Data.Add(v.Key, v.Value);
-            }
+        }
+
+        private static string GetLanguage(string culture)
+        {
+            if (!culture.Contains('-'))
+                return "";
+
+            return culture.Substring(0, culture.IndexOf('-'));
         }
 
         /// <summary>
@@ -81,18 +88,15 @@ namespace Netch.Utils
                     a.Append(Data.Contains(t) ? Data[t].ToString() : t);
                 else
                     a.Append(t);
+
             return a.ToString();
         }
 
         public static string TranslateFormat(string format, params object[] args)
         {
             for (var i = 0; i < args.Length; i++)
-            {
                 if (args[i] is string)
-                {
                     args[i] = Translate((string) args[i]);
-                }
-            }
 
             return string.Format(Translate(format), args);
         }
@@ -101,31 +105,34 @@ namespace Netch.Utils
         {
             var translateFile = new List<string> {"System", "zh-CN", "en-US"};
 
-            if (!Directory.Exists("i18n")) return translateFile;
+            if (!Directory.Exists("i18n"))
+                return translateFile;
+
             translateFile.AddRange(Directory.GetFiles("i18n", "*").Select(fileName => fileName.Substring(5)));
             return translateFile;
         }
 
         public static void TranslateForm(in Control c)
         {
-            Utils.ComponentIterator(c, component =>
-            {
-                switch (component)
+            Utils.ComponentIterator(c,
+                component =>
                 {
-                    case TextBoxBase _:
-                    case ListControl _:
-                        break;
-                    case Control c:
-                        c.Text = Translate(c.Text);
-                        break;
-                    case ToolStripItem c:
-                        c.Text = Translate(c.Text);
-                        break;
-                    case ColumnHeader c:
-                        c.Text = Translate(c.Text);
-                        break;
-                }
-            });
+                    switch (component)
+                    {
+                        case TextBoxBase _:
+                        case ListControl _:
+                            break;
+                        case Control c:
+                            c.Text = Translate(c.Text);
+                            break;
+                        case ToolStripItem c:
+                            c.Text = Translate(c.Text);
+                            break;
+                        case ColumnHeader c:
+                            c.Text = Translate(c.Text);
+                            break;
+                    }
+                });
         }
     }
 }

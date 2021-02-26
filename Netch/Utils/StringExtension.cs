@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 
 namespace Netch.Utils
 {
-    public static class StringEx
+    public static class StringExtension
     {
         public static bool IsNullOrEmpty(this string value)
         {
@@ -19,7 +20,9 @@ namespace Netch.Utils
 
         public static bool BeginWithAny(this string s, IEnumerable<char> chars)
         {
-            if (s.IsNullOrEmpty()) return false;
+            if (s.IsNullOrEmpty())
+                return false;
+
             return chars.Contains(s[0]);
         }
 
@@ -27,10 +30,12 @@ namespace Netch.Utils
         {
             foreach (var c in value)
             {
-                if (char.IsWhiteSpace(c)) continue;
+                if (char.IsWhiteSpace(c))
+                    continue;
 
                 return false;
             }
+
             return true;
         }
 
@@ -39,7 +44,9 @@ namespace Netch.Utils
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                if (line.IsWhiteSpace()) continue;
+                if (line.IsWhiteSpace())
+                    continue;
+
                 yield return line;
             }
         }
@@ -51,9 +58,26 @@ namespace Netch.Utils
             {
                 if (new[] {'\\', '(', ')', '[', ']', '.'}.Any(s => s == t))
                     sb.Append(@"\");
+
                 sb.Append(t);
             }
+
             return sb.ToString();
+        }
+
+        public static string[] SplitRemoveEmptyEntriesAndTrimEntries(this string value, params char[] separator)
+        {
+            return value.Split(separator).Select(s => s.Trim()).Where(s => s != string.Empty).ToArray();
+        }
+
+        public static string[] SplitTrimEntries(this string value, params char[] separator)
+        {
+            return value.Split(separator).Select(s => s.Trim()).ToArray();
+        }
+
+        public static string[] SplitRemoveEmptyEntries(this string value, params char[] separator)
+        {
+            return value.Split(separator, StringSplitOptions.RemoveEmptyEntries);
         }
     }
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Netch.Controllers;
-using Netch.Forms;
 using Netch.Models;
 using Netch.Servers.Shadowsocks;
 using Netch.Servers.Socks5;
@@ -20,10 +19,12 @@ namespace Netch.Utils
         {
             return fullName.Substring(ModeDirectory.Length);
         }
+
         public static string GetFullPath(string relativeName)
         {
             return Path.Combine(ModeDirectory, relativeName);
         }
+
         public static string GetFullPath(Mode mode)
         {
             return Path.Combine(ModeDirectory, mode.RelativePath);
@@ -36,7 +37,8 @@ namespace Netch.Utils
         {
             Global.Modes.Clear();
 
-            if (!Directory.Exists(MODE_DIR)) return;
+            if (!Directory.Exists(MODE_DIR))
+                return;
 
             var stack = new Stack<string>();
             stack.Push(MODE_DIR);
@@ -65,7 +67,8 @@ namespace Netch.Utils
             var mode = new Mode(fullName);
 
             var content = File.ReadAllLines(fullName);
-            if (content.Length == 0) return;
+            if (content.Length == 0)
+                return;
 
             for (var i = 0; i < content.Length; i++)
             {
@@ -75,9 +78,10 @@ namespace Netch.Utils
                 {
                     if (text.First() != '#')
                         return;
+
                     try
                     {
-                        var splited = text.Substring(1).Split(',').Select(s => s.Trim()).ToArray();
+                        var splited = text.Substring(1).SplitTrimEntries(',');
 
                         mode.Remark = splited[0];
 
@@ -110,7 +114,7 @@ namespace Netch.Utils
         {
             Global.Modes.Add(mode);
             Sort();
-            Global.MainForm.InitMode();
+            Global.MainForm.LoadModes();
         }
 
         public static void Delete(Mode mode)
@@ -120,21 +124,21 @@ namespace Netch.Utils
                 File.Delete(fullName);
 
             Global.Modes.Remove(mode);
-            Global.MainForm.InitMode();
+            Global.MainForm.LoadModes();
         }
 
         public static bool SkipServerController(Server server, Mode mode)
         {
             return mode.Type switch
-            {
-                0 => server switch
-                {
-                    Socks5 => true,
-                    Shadowsocks shadowsocks when !shadowsocks.HasPlugin() && Global.Settings.RedirectorSS => true,
-                    _ => false
-                },
-                _ => false
-            };
+                   {
+                       0 => server switch
+                            {
+                                Socks5 => true,
+                                Shadowsocks shadowsocks when !shadowsocks.HasPlugin() && Global.Settings.RedirectorSS => true,
+                                _ => false
+                            },
+                       _ => false
+                   };
         }
 
         public static IModeController GetModeControllerByType(int type, out ushort? port, out string portName, out PortType portType)
@@ -161,14 +165,14 @@ namespace Netch.Utils
                     port = Global.Settings.HTTPLocalPort;
                     portName = "HTTP";
                     portType = PortType.TCP;
-                    MainForm.StatusPortInfoText.HttpPort = (ushort) port;
+                    StatusPortInfoText.HttpPort = (ushort) port;
                     break;
                 case 4:
                     modeController = null;
                     break;
                 default:
                     Logging.Error("未知模式类型");
-                    throw new StartFailedException();
+                    throw new MessageException();
             }
 
             return modeController;

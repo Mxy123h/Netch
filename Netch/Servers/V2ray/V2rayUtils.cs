@@ -12,10 +12,10 @@ namespace Netch.Servers.V2ray
     {
         public static IEnumerable<Server> ParseVUri(string text)
         {
-            var scheme = ShareLink.GetUriScheme(text);
+            var scheme = ShareLink.GetUriScheme(text).ToLower();
             try
             {
-                var server = new VMess.VMess();
+                var server = scheme switch {"vmess" => new VMess.VMess(), "vless" => new VLESS.VLESS(), _ => throw new ArgumentOutOfRangeException()};
                 if (text.Contains("#"))
                 {
                     server.Remark = Uri.UnescapeDataString(text.Split('#')[1]);
@@ -38,7 +38,7 @@ namespace Netch.Servers.V2ray
                             break;
                         case "ws":
                             server.Path = Uri.UnescapeDataString(parameter.Get("path") ?? "/");
-                            server.Host = parameter.Get("host") ?? "";
+                            server.Host = Uri.UnescapeDataString(parameter.Get("host") ?? "");
                             break;
                         case "h2":
                             server.Path = Uri.UnescapeDataString(parameter.Get("path") ?? "/");
@@ -50,6 +50,7 @@ namespace Netch.Servers.V2ray
                             server.FakeType = parameter.Get("headerType") ?? "none";
                             break;
                     }
+
                     server.TLSSecureType = parameter.Get("security") ?? "none";
                     if (server.TLSSecureType != "none")
                     {
@@ -58,6 +59,7 @@ namespace Netch.Servers.V2ray
                             ((VLESS.VLESS) server).Flow = parameter.Get("flow") ?? "";
                     }
                 }
+
                 var finder = new Regex(@$"^{scheme}://(?<guid>.+?)@(?<server>.+):(?<port>\d+)");
                 var match = finder.Match(text.Split('?')[0]);
                 if (!match.Success)
@@ -78,8 +80,10 @@ namespace Netch.Servers.V2ray
                 return null;
             }
         }
+
         public static string GetVShareLink(Server s, string scheme = "vmess")
         {
+            // https://github.com/XTLS/Xray-core/issues/91
             var server = (VMess.VMess) s;
             var parameter = new Dictionary<string, string>();
             // protocol-specific fields
@@ -87,6 +91,7 @@ namespace Netch.Servers.V2ray
             if (server.EncryptMethod == "none")
                 // VLESS outbounds[].settings.encryption，当前可选值只有 none
                 parameter.Add("encryption", server.EncryptMethod);
+
             // transport-specific fields
             switch (server.TransferProtocol)
             {
@@ -95,18 +100,22 @@ namespace Netch.Servers.V2ray
                 case "kcp":
                     if (server.FakeType != "none")
                         parameter.Add("headerType", server.FakeType);
+
                     if (!server.Path.IsNullOrWhiteSpace())
                         parameter.Add("seed", Uri.EscapeDataString(server.Path));
+
                     break;
                 case "ws":
                     parameter.Add("path", Uri.EscapeDataString(server.Path.IsNullOrWhiteSpace() ? "/" : server.Path));
                     if (!server.Host.IsNullOrWhiteSpace())
-                        parameter.Add("host", server.Host);
+                        parameter.Add("host", Uri.EscapeDataString(server.Host));
+
                     break;
                 case "h2":
                     parameter.Add("path", Uri.EscapeDataString(server.Path.IsNullOrWhiteSpace() ? "/" : server.Path));
                     if (!server.Host.IsNullOrWhiteSpace())
                         parameter.Add("host", Uri.EscapeDataString(server.Host));
+
                     break;
                 case "quic":
                     if (server.QUICSecure != "none")
@@ -117,6 +126,7 @@ namespace Netch.Servers.V2ray
 
                     if (server.FakeType != "none")
                         parameter.Add("headerType", server.FakeType);
+
                     break;
             }
 
@@ -135,7 +145,8 @@ namespace Netch.Servers.V2ray
                 }
             }
 
-            return $"{scheme}://{server.UserID}@{server.Hostname}:{server.Port}?{string.Join("&", parameter.Select(p => $"{p.Key}={p.Value}"))}{(server.Remark.IsNullOrWhiteSpace() ? "" : $"#{Uri.EscapeDataString(server.Remark)}")}";
+            return
+                $"{scheme}://{server.UserID}@{server.Hostname}:{server.Port}?{string.Join("&", parameter.Select(p => $"{p.Key}={p.Value}"))}{(server.Remark.IsNullOrWhiteSpace() ? "" : $"#{Uri.EscapeDataString(server.Remark)}")}";
         }
     }
 }

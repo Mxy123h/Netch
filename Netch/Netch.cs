@@ -24,7 +24,9 @@ namespace Netch
 
             // 设置当前目录
             Directory.SetCurrentDirectory(Global.NetchDir);
-            Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process) + ";" + Path.Combine(Global.NetchDir, "bin"), EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable("PATH",
+                Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process) + ";" + Path.Combine(Global.NetchDir, "bin"),
+                EnvironmentVariableTarget.Process);
 
             Updater.Updater.CleanOld();
 
@@ -36,15 +38,6 @@ namespace Netch
 
             // 加载配置
             Configuration.Load();
-
-            // 加载语言
-            i18N.Load(Global.Settings.Language);
-
-            if (!Directory.Exists("bin") || !Directory.EnumerateFileSystemEntries("bin").Any())
-            {
-                MessageBoxX.Show(i18N.Translate("Please extract all files then run the program!"));
-                Environment.Exit(2);
-            }
 
             // 检查是否已经运行
             if (!Global.Mutex.WaitOne(0, false))
@@ -68,8 +61,17 @@ namespace Netch
                     dir.Delete(true);
             }
 
+            // 加载语言
+            i18N.Load(Global.Settings.Language);
+
+            if (!Directory.Exists("bin") || !Directory.EnumerateFileSystemEntries("bin").Any())
+            {
+                MessageBoxX.Show(i18N.Translate("Please extract all files then run the program!"));
+                Environment.Exit(2);
+            }
+
             Logging.Info($"版本: {UpdateChecker.Owner}/{UpdateChecker.Repo}@{UpdateChecker.Version}");
-            Task.Run(() => { Logging.Info($"主程序 SHA256: {Utils.Utils.SHA256CheckSum(Application.ExecutablePath)}"); });
+            Task.Run(() => { Logging.Info($"主程序 SHA256: {Utils.Utils.SHA256CheckSum(Global.NetchExecutable)}"); });
             Task.Run(() =>
             {
                 Logging.Info("启动单实例");

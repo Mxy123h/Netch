@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Windows.Forms;
 using Netch.Forms;
 using Netch.Properties;
 
@@ -41,7 +40,7 @@ namespace Netch.Updater
             MoveDirectory(Path.Combine(extractPath, "Netch"), Global.NetchDir, true);
 
             Global.Mutex.ReleaseMutex();
-            Process.Start(Application.ExecutablePath);
+            Process.Start(Global.NetchExecutable);
             Global.MainForm.Exit(true);
         }
 
@@ -70,6 +69,7 @@ namespace Netch.Updater
                 FileName = temp7za,
                 Arguments = argument.ToString()
             });
+
             process?.WaitForExit();
             return process?.ExitCode ?? 2;
         }
@@ -120,6 +120,7 @@ namespace Netch.Updater
                 foreach (var dir in Directory.GetDirectories(sourceDirName, "*", SearchOption.AllDirectories))
                     if (!Directory.Exists(dir))
                         Directory.CreateDirectory(dir);
+
                 foreach (var f in Directory.GetFiles(sourceDirName, "*", SearchOption.AllDirectories))
                     try
                     {

@@ -2,27 +2,24 @@
 {
     public class Profile
     {
-        public string ServerRemark;
+        public int Index;
         public string ModeRemark;
         public string ProfileName;
+        public string ServerRemark;
 
-        public bool IsDummy = true;
-
-        public Profile(Server server, Mode mode, string name)
+        public Profile(Server server, Mode mode, string name, int index)
         {
             ServerRemark = server.Remark;
             ModeRemark = mode.Remark;
             ProfileName = name;
-            IsDummy = false;
+            Index = index;
         }
 
         /// <summary>
-        /// Return a dummy one.
+        ///     Return a dummy one.
         /// </summary>
         public Profile()
         {
         }
-
-
     }
 }

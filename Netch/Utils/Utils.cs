@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MaxMind.GeoIP2;
 using Microsoft.Win32.TaskScheduler;
+using Vanara.PInvoke;
 using Task = System.Threading.Tasks.Task;
 
 namespace Netch.Utils
@@ -29,6 +30,7 @@ namespace Netch.Utils
                     Arguments = path,
                     UseShellExecute = true
                 });
+
                 return true;
             }
             catch
@@ -136,21 +138,19 @@ namespace Netch.Utils
             return File.Exists(file) ? FileVersionInfo.GetVersionInfo(file).FileVersion : string.Empty;
         }
 
-        public static bool SearchOutboundAdapter(bool logging = true)
+        public static void SearchOutboundAdapter(bool logging = true)
         {
             // 寻找出口适配器
-            if (Vanara.PInvoke.IpHlpApi.GetBestRoute(BitConverter.ToUInt32(IPAddress.Parse("114.114.114.114").GetAddressBytes(), 0),
-                0, out var pRoute) != 0)
+            if (IpHlpApi.GetBestRoute(BitConverter.ToUInt32(IPAddress.Parse("114.114.114.114").GetAddressBytes(), 0), 0, out var pRoute) != 0)
             {
                 Logging.Error("GetBestRoute 搜索失败");
-                return false;
+                throw new Exception("GetBestRoute 搜索失败");
             }
 
             Global.Outbound.Index = (int) pRoute.dwForwardIfIndex;
             // 根据 IP Index 寻找 出口适配器
-            try
-            {
-                var adapter = NetworkInterface.GetAllNetworkInterfaces().First(_ =>
+            var adapter = NetworkInterface.GetAllNetworkInterfaces()
+                .First(_ =>
                 {
                     try
                     {
@@ -161,21 +161,15 @@ namespace Netch.Utils
                         return false;
                     }
                 });
-                Global.Outbound.Adapter = adapter;
-                Global.Outbound.Gateway = new IPAddress(pRoute.dwForwardNextHop.S_un_b);
-                if (logging)
-                {
-                    Logging.Info($"出口 IPv4 地址：{Global.Outbound.Address}");
-                    Logging.Info($"出口 网关 地址：{Global.Outbound.Gateway}");
-                    Logging.Info($"出口适配器：{adapter.Name} {adapter.Id} {adapter.Description}, index: {Global.Outbound.Index}");
-                }
 
-                return true;
-            }
-            catch (Exception e)
+            Global.Outbound.Adapter = adapter;
+            Global.Outbound.Gateway = new IPAddress(pRoute.dwForwardNextHop.S_un_b);
+
+            if (logging)
             {
-                Logging.Error($"找不到出口IP所在网卡: {e}");
-                return false;
+                Logging.Info($"出口 IPv4 地址：{Global.Outbound.Address}");
+                Logging.Info($"出口 网关 地址：{Global.Outbound.Gateway}");
+                Logging.Info($"出口适配器：{adapter.Name} {adapter.Id} {adapter.Description}, index: {Global.Outbound.Index}");
             }
         }
 
@@ -194,7 +188,10 @@ namespace Netch.Utils
                 if (e.Index < 0)
                     return;
 
-                TextRenderer.DrawText(e.Graphics, cbx.Items[e.Index].ToString(), cbx.Font, e.Bounds,
+                TextRenderer.DrawText(e.Graphics,
+                    cbx.Items[e.Index].ToString(),
+                    cbx.Font,
+                    e.Bounds,
                     (e.State & DrawItemState.Selected) == DrawItemState.Selected ? SystemColors.HighlightText : cbx.ForeColor,
                     TextFormatFlags.HorizontalCenter);
             }
@@ -257,7 +254,7 @@ namespace Netch.Utils
                 td.Principal.RunLevel = TaskRunLevel.Highest;
 
                 td.Triggers.Add(new LogonTrigger());
-                td.Actions.Add(new ExecAction(Application.ExecutablePath));
+                td.Actions.Add(new ExecAction(Global.NetchExecutable));
 
                 td.Settings.ExecutionTimeLimit = TimeSpan.Zero;
                 td.Settings.DisallowStartIfOnBatteries = false;
@@ -279,7 +276,9 @@ namespace Netch.Utils
             {
                 case TextBox _:
                 case ComboBox _:
-                    if (((Control) component).ForeColor != color) ((Control) component).ForeColor = color;
+                    if (((Control) component).ForeColor != color)
+                        ((Control) component).ForeColor = color;
+
                     break;
             }
         }
