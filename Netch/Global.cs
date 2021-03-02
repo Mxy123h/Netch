@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
 using WindowsJobAPI;
@@ -30,7 +32,7 @@ namespace Netch
         /// <summary>
         ///     主窗体的静态实例
         /// </summary>
-        public static MainForm MainForm;
+        private static readonly Lazy<MainForm> LazyMainForm = new(() => new MainForm());
 
         public static readonly Mutex Mutex = new(false, "Global\\Netch");
 
@@ -59,9 +61,9 @@ namespace Netch
         {
             public static readonly bool IsWindows10Upper = Environment.OSVersion.Version.Major >= 10;
 
-            private static bool? _supportFakeDns;
+            private static readonly Lazy<bool> LazySupportFakeDns = new(() => new TUNTAPController().TestFakeDNS());
 
-            public static bool SupportFakeDns => _supportFakeDns ??= new TUNTAPController().TestFakeDNS();
+            public static bool SupportFakeDns => LazySupportFakeDns.Value;
         }
 
         /// <summary>
@@ -77,14 +79,14 @@ namespace Netch
             /// <summary>
             ///     网关
             /// </summary>
-            public static IPAddress Gateway;
+            public static IPAddress? Gateway;
 
-            public static NetworkInterface Adapter;
+            public static NetworkInterface? Adapter;
 
             /// <summary>
             ///     地址
             /// </summary>
-            public static IPAddress Address => Adapter.GetIPProperties()
+            public static IPAddress Address => Adapter!.GetIPProperties()
                 .UnicastAddresses.First(ip => ip.Address.AddressFamily == AddressFamily.InterNetwork)
                 .Address;
         }
@@ -97,7 +99,7 @@ namespace Netch
             /// <summary>
             ///     适配器
             /// </summary>
-            public static NetworkInterface Adapter;
+            public static NetworkInterface? Adapter;
 
             /// <summary>
             ///     索引
@@ -109,5 +111,17 @@ namespace Netch
             /// </summary>
             public static string ComponentID = string.Empty;
         }
+
+        /// <summary>
+        ///     主窗体的静态实例
+        /// </summary>
+        public static MainForm MainForm => LazyMainForm.Value;
+
+        public static JsonSerializerOptions NewDefaultJsonSerializerOptions => new()
+        {
+            WriteIndented = true,
+            IgnoreNullValues = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
     }
 }

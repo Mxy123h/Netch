@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Netch.Models;
 using Netch.Servers.V2ray.Models;
-using Newtonsoft.Json;
 using V2rayConfig = Netch.Servers.V2ray.Models.V2rayConfig;
 
 namespace Netch.Servers.V2ray.Utils
@@ -11,24 +11,15 @@ namespace Netch.Servers.V2ray.Utils
     {
         public static string GenerateClientConfig(Server server, Mode mode)
         {
-            try
-            {
-                var v2rayConfig = new V2rayConfig();
+            var v2rayConfig = new V2rayConfig();
 
-                inbound(server, ref v2rayConfig);
+            inbound(server, ref v2rayConfig);
 
-                routing(server, mode, ref v2rayConfig);
+            routing(server, mode, ref v2rayConfig);
 
-                outbound(server, mode, ref v2rayConfig);
+            outbound(server, mode, ref v2rayConfig);
 
-                return JsonConvert.SerializeObject(v2rayConfig,
-                    Formatting.Indented,
-                    new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
-            }
-            catch
-            {
-                return "";
-            }
+            return JsonSerializer.Serialize(v2rayConfig, Global.NewDefaultJsonSerializerOptions);
         }
 
         private static void inbound(Server server, ref V2rayConfig v2rayConfig)
@@ -46,10 +37,7 @@ namespace Netch.Servers.V2ray.Utils
                     }
                 };
 
-                v2rayConfig.inbounds = new List<Inbounds>
-                {
-                    inbound
-                };
+                v2rayConfig.inbounds.Add(inbound);
             }
             catch
             {
@@ -99,18 +87,13 @@ namespace Netch.Servers.V2ray.Utils
                 if (mode.Type is 0 or 1 or 2)
                     blockRuleObject.ip.Add("geoip:private");
 
-                v2rayConfig.routing = new Routing
-                {
-                    rules = new List<RulesItem>()
-                };
-
                 static bool CheckRuleItem(ref RulesItem rulesItem)
                 {
                     bool ipResult, domainResult;
-                    if (!(ipResult = rulesItem.ip.Any()))
+                    if (!(ipResult = rulesItem.ip?.Any() ?? false))
                         rulesItem.ip = null;
 
-                    if (!(domainResult = rulesItem.domain.Any()))
+                    if (!(domainResult = rulesItem.domain?.Any() ?? false))
                         rulesItem.domain = null;
 
                     return ipResult || domainResult;
@@ -242,7 +225,7 @@ namespace Netch.Servers.V2ray.Utils
                     }
                 }
 
-                v2rayConfig.outbounds = new List<Outbounds>
+                v2rayConfig.outbounds.AddRange(new[]
                 {
                     outbound,
                     new()
@@ -253,7 +236,7 @@ namespace Netch.Servers.V2ray.Utils
                     {
                         tag = "block", protocol = "blackhole"
                     }
-                };
+                });
             }
             catch
             {
@@ -321,7 +304,7 @@ namespace Netch.Servers.V2ray.Utils
                         {
                             host = new List<string>
                             {
-                                string.IsNullOrWhiteSpace(server.Host) ? server.Hostname : server.Host
+                                string.IsNullOrWhiteSpace(server.Host) ? server.Hostname : server.Host!
                             },
                             path = server.Path
                         };

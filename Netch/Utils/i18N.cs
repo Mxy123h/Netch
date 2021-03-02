@@ -4,9 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Windows.Forms;
 using Netch.Properties;
-using Newtonsoft.Json;
 
 namespace Netch.Utils
 {
@@ -24,7 +24,7 @@ namespace Netch.Utils
         /// </summary>
         public static Hashtable Data = new();
 
-        public static string LangCode { get; private set; }
+        public static string LangCode { get; private set; } = "en-US";
 
         /// <summary>
         ///     加载
@@ -57,10 +57,13 @@ namespace Netch.Utils
                     break;
             }
 
-            var dictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(text);
+            var dictionary = JsonSerializer.Deserialize<Dictionary<string, string>>(text);
 
-            if (dictionary == null)
+            if (!dictionary.Any())
+            {
+                Logging.Error($"{LangCode} 语言文件错误");
                 return;
+            }
 
             Data = new Hashtable();
             foreach (var v in dictionary)
@@ -119,17 +122,17 @@ namespace Netch.Utils
                 {
                     switch (component)
                     {
-                        case TextBoxBase _:
-                        case ListControl _:
+                        case TextBoxBase:
+                        case ListControl:
                             break;
-                        case Control c:
-                            c.Text = Translate(c.Text);
+                        case Control control:
+                            control.Text = Translate(control.Text);
                             break;
-                        case ToolStripItem c:
-                            c.Text = Translate(c.Text);
+                        case ToolStripItem toolStripItem:
+                            toolStripItem.Text = Translate(toolStripItem.Text);
                             break;
-                        case ColumnHeader c:
-                            c.Text = Translate(c.Text);
+                        case ColumnHeader columnHeader:
+                            columnHeader.Text = Translate(columnHeader.Text);
                             break;
                     }
                 });

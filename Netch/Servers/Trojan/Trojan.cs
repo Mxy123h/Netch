@@ -4,19 +4,16 @@ namespace Netch.Servers.Trojan
 {
     public class Trojan : Server
     {
-        public Trojan()
-        {
-            Type = "Trojan";
-        }
+        public override string Type { get; } = "Trojan";
 
         /// <summary>
         ///     密码
         /// </summary>
-        public string Password { get; set; }
+        public string Password { get; set; } = string.Empty;
 
         /// <summary>
         ///     伪装域名
         /// </summary>
-        public string Host { get; set; }
+        public string? Host { get; set; }
     }
 }

@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Netch.Utils;
-using Newtonsoft.Json;
 
 namespace Netch.Models
 {
@@ -11,36 +12,41 @@ namespace Netch.Models
         ///     延迟
         /// </summary>
         [JsonIgnore]
-        public int Delay = -1;
+        public int Delay { get; private set; } = -1;
 
         /// <summary>
         ///     组
         /// </summary>
-        public string Group = "None";
+        public string Group { get; set; } = "None";
 
         /// <summary>
         ///     地址
         /// </summary>
-        public string Hostname;
+        public string Hostname { get; set; } = string.Empty;
 
         /// <summary>
         ///     端口
         /// </summary>
-        public ushort Port;
+        public ushort Port { get; set; }
 
         /// <summary>
         ///     倍率
         /// </summary>
-        public double Rate = 1.0;
+        public double Rate { get; } = 1.0;
+
         /// <summary>
         ///     备注
         /// </summary>
-        public string Remark;
+        public string Remark { get; set; } = "";
 
         /// <summary>
         ///     代理类型
         /// </summary>
-        public string Type;
+        public virtual string Type { get; } = string.Empty;
+
+        [JsonExtensionData]
+        // ReSharper disable once CollectionNeverUpdated.Global
+        public Dictionary<string, object> ExtensionData { get; set; } = new();
 
         public object Clone()
         {
@@ -58,7 +64,17 @@ namespace Netch.Models
             if (Group.Equals("None") || Group.Equals(""))
                 Group = "NONE";
 
-            return $"[{ServerHelper.GetUtilByTypeName(Type)?.ShortName ?? "WTF"}][{Group}] {remark}";
+            string shortName;
+            if (Type == string.Empty)
+            {
+                shortName = "WTF";
+            }
+            else
+            {
+                shortName = ServerHelper.GetUtilByTypeName(Type).ShortName;
+            }
+
+            return $"[{shortName}][{Group}] {remark}";
         }
 
         /// <summary>
@@ -106,7 +122,20 @@ namespace Netch.Models
     {
         public static string AutoResolveHostname(this Server server)
         {
-            return Global.Settings.ResolveServerHostname ? DNS.Lookup(server.Hostname).ToString() : server.Hostname;
+            return Global.Settings.ResolveServerHostname ? DNS.Lookup(server.Hostname)!.ToString() : server.Hostname;
+        }
+
+        public static bool Valid(this Server server)
+        {
+            try
+            {
+                ServerHelper.GetTypeByTypeName(server.Type);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

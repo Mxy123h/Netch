@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Netch.Controllers;
 using Netch.Models;
 using Netch.Servers.Trojan.Models;
-using Newtonsoft.Json;
 
 namespace Netch.Servers.Trojan
 {
@@ -19,7 +19,7 @@ namespace Netch.Servers.Trojan
 
         public ushort? Socks5LocalPort { get; set; }
 
-        public string LocalAddress { get; set; }
+        public string? LocalAddress { get; set; }
 
         public void Start(in Server s, in Mode mode)
         {
@@ -39,13 +39,7 @@ namespace Netch.Servers.Trojan
             if (!string.IsNullOrWhiteSpace(server.Host))
                 trojanConfig.ssl.sni = server.Host;
 
-            File.WriteAllText("data\\last.json",
-                JsonConvert.SerializeObject(trojanConfig,
-                    Formatting.Indented,
-                    new JsonSerializerSettings
-                    {
-                        NullValueHandling = NullValueHandling.Ignore
-                    }));
+            File.WriteAllBytes("data\\last.json", JsonSerializer.SerializeToUtf8Bytes(trojanConfig, Global.NewDefaultJsonSerializerOptions));
 
             StartInstanceAuto("-c ..\\data\\last.json");
         }

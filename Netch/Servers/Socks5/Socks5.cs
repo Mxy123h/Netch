@@ -7,17 +7,14 @@ namespace Netch.Servers.Socks5
         /// <summary>
         ///     密码
         /// </summary>
-        public string Password;
+        public string? Password;
 
         /// <summary>
         ///     账号
         /// </summary>
-        public string Username;
+        public string? Username;
 
-        public Socks5()
-        {
-            Type = "Socks5";
-        }
+        public override string Type { get; } = "Socks5";
 
         public bool Auth()
         {

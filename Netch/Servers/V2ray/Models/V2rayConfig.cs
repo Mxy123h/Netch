@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿#nullable disable
+using System.Collections.Generic;
 
 namespace Netch.Servers.V2ray.Models
 {
     public class V2rayConfig
     {
-        public List<Inbounds> inbounds { get; set; }
+        public List<Inbounds> inbounds { get; } = new();
 
-        public List<Outbounds> outbounds { get; set; }
+        public List<Outbounds> outbounds { get; } = new();
 
-        public Routing routing { get; set; }
+        public Routing routing { get; } = new();
     }
 
     public class Inbounds
@@ -160,7 +161,7 @@ namespace Netch.Servers.V2ray.Models
     {
         public string domainStrategy { get; set; }
 
-        public List<RulesItem> rules { get; set; }
+        public List<RulesItem> rules { get; } = new();
     }
 
     public class StreamSettings
@@ -207,24 +208,26 @@ namespace Netch.Servers.V2ray.Models
 
     public class TCPRequest
     {
-        public TCPRequestHeaders headers;
+        public TCPRequestHeaders headers { get; set; }
 
-        public string method = "GET";
+        public string method { get; set; } = "GET";
 
-        public string path = "/";
-        public string version = "1.1";
+        public string path { get; set; } = "/";
+
+        public string version { get; set; } = "1.1";
     }
 
     public class TCPRequestHeaders
     {
         //public string User_Agent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.75 Safari/537.36";
 
-        public string Accept_Encoding = "gzip, deflate";
+        public string Accept_Encoding { get; set; } = "gzip, deflate";
 
-        public string Connection = "keep-alive";
-        public string Host;
+        public string Connection { get; set; } = "keep-alive";
 
-        public string Pragma = "no-cache";
+        public string Host { get; set; }
+
+        public string Pragma { get; set; } = "no-cache";
     }
 
     public class KcpSettings

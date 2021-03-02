@@ -13,6 +13,7 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <LangVersion>latest</LangVersion>
         <IsPackable>false</IsPackable>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -42,9 +43,9 @@
         <PackageReference Include="MaxMind.GeoIP2" Version="4.0.1" />
         <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="2.0.66" GeneratePathProperty="true" />
         <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
         <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
         <PackageReference Include="System.Reflection.Metadata" Version="5.0.0" />
+        <PackageReference Include="System.Text.Json" Version="5.0.1"/>
         <PackageReference Include="TaskScheduler" Version="2.9.1" />
         <PackageReference Include="Vanara.PInvoke.IpHlpApi" Version="3.3.4" />
         <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.4" />
@@ -73,10 +74,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\binaries\**" LinkBase="bin" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Visible="false" Include="..\binaries\**" LinkBase="bin" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
         <None Remove="..\binaries\.git" />
-        <None Include="..\translations\i18n\**" LinkBase="i18n" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
-        <None Include="..\modes\mode\**" LinkBase="mode" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Visible="false" Include="..\translations\i18n\**" LinkBase="i18n" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Visible="false" Include="..\modes\mode\**" LinkBase="mode" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

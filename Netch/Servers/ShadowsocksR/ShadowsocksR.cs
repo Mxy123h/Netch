@@ -5,10 +5,7 @@ namespace Netch.Servers.ShadowsocksR
 {
     public class ShadowsocksR : Server
     {
-        public ShadowsocksR()
-        {
-            Type = "SSR";
-        }
+        public override string Type { get; } = "SSR";
 
         /// <summary>
         ///     加密方式
@@ -23,12 +20,12 @@ namespace Netch.Servers.ShadowsocksR
         /// <summary>
         ///     混淆参数
         /// </summary>
-        public string OBFSParam { get; set; }
+        public string? OBFSParam { get; set; }
 
         /// <summary>
         ///     密码
         /// </summary>
-        public string Password { get; set; }
+        public string Password { get; set; } = string.Empty;
 
         /// <summary>
         ///     协议
@@ -38,7 +35,7 @@ namespace Netch.Servers.ShadowsocksR
         /// <summary>
         ///     协议参数
         /// </summary>
-        public string ProtocolParam { get; set; }
+        public string? ProtocolParam { get; set; }
     }
 
     public class SSRGlobal

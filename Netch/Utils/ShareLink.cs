@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using Netch.Models;
 using Netch.Servers.Shadowsocks;
 using Netch.Servers.Shadowsocks.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Netch.Utils
 {
@@ -33,7 +32,7 @@ namespace Netch.Utils
 
             try
             {
-                list.AddRange(JsonConvert.DeserializeObject<List<ShadowsocksConfig>>(text)
+                list.AddRange(JsonSerializer.Deserialize<List<ShadowsocksConfig>>(text)
                     .Select(server => new Shadowsocks
                     {
                         Hostname = server.server,
@@ -45,7 +44,7 @@ namespace Netch.Utils
                         PluginOption = server.plugin_opts
                     }));
             }
-            catch (JsonReaderException)
+            catch (JsonException)
             {
                 foreach (var line in text.GetLines())
                     list.AddRange(ParseUri(line));
@@ -85,13 +84,13 @@ namespace Netch.Utils
             catch (Exception e)
             {
                 Logging.Error(e.ToString());
+                Utils.Open(Logging.LogFile);
             }
 
-            foreach (var node in list)
-                if (!node.Remark.IsNullOrWhiteSpace())
-                    node.Remark = RemoveEmoji(node.Remark);
+            foreach (var node in list.Where(node => !node.Remark.IsNullOrWhiteSpace()))
+                node.Remark = RemoveEmoji(node.Remark);
 
-            return list.Where(s => s != null);
+            return list;
         }
 
         public static string GetUriScheme(string text)
@@ -105,37 +104,28 @@ namespace Netch.Utils
 
         private static Server ParseNetchUri(string text)
         {
-            try
-            {
-                text = text.Substring(8);
+            text = URLSafeBase64Decode(text.Substring(8));
 
-                var NetchLink = (JObject) JsonConvert.DeserializeObject(URLSafeBase64Decode(text));
-                if (NetchLink == null)
-                    return null;
+            var NetchLink = JsonSerializer.Deserialize<JsonElement>(text);
 
-                if (string.IsNullOrEmpty((string) NetchLink["Hostname"]))
-                    return null;
+            if (string.IsNullOrEmpty(NetchLink.GetProperty("Hostname").GetString()))
+                throw new FormatException();
 
-                if (!ushort.TryParse((string) NetchLink["Port"], out _))
-                    return null;
+            if (!ushort.TryParse(NetchLink.GetProperty("Port").GetString(), out _))
+                throw new FormatException();
 
-                var type = (string) NetchLink["Type"];
-                var s = ServerHelper.GetUtilByTypeName(type).ParseJObject(NetchLink);
-                return ServerHelper.GetUtilByTypeName(s.Type).CheckServer(s) ? s : null;
-            }
-            catch (Exception e)
-            {
-                Logging.Warning(e.ToString());
-                return null;
-            }
+            return JsonSerializer.Deserialize<Server>(text,
+                new JsonSerializerOptions
+                {
+                    Converters = {new ServerConverterWithTypeDiscriminator()}
+                })!;
         }
 
         public static string GetNetchLink(Server s)
         {
-            var server = (Server) s.Clone();
-            return "Netch://" +
-                   URLSafeBase64Encode(JsonConvert.SerializeObject(server,
-                       new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore}));
+            var jsonSerializerOptions = Global.NewDefaultJsonSerializerOptions;
+            jsonSerializerOptions.WriteIndented = false;
+            return "Netch://" + URLSafeBase64Encode(JsonSerializer.Serialize(s, jsonSerializerOptions));
         }
 
         #region Utils
@@ -209,7 +199,7 @@ namespace Netch.Utils
         public static IEnumerable<string> GetLines(this string str, bool removeEmptyLines = true)
         {
             using var sr = new StringReader(str);
-            string line;
+            string? line;
             while ((line = sr.ReadLine()) != null)
             {
                 if (removeEmptyLines && string.IsNullOrWhiteSpace(line))

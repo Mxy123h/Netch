@@ -50,7 +50,7 @@ namespace Netch.Forms
             // 监听电源事件
             SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
 
-            ModeComboBox.KeyUp += (sender, args) =>
+            ModeComboBox.KeyUp += (_, args) =>
             {
                 switch (args.KeyData)
                 {
@@ -149,8 +149,8 @@ namespace Netch.Forms
                     {
                         switch (component)
                         {
-                            case TextBoxBase _:
-                            case ListControl _:
+                            case TextBoxBase:
+                            case ListControl:
                                 break;
                             case Control c:
                                 _mainFormText.Add(c.Name, c.Text);
@@ -179,8 +179,8 @@ namespace Netch.Forms
             {
                 switch (component)
                 {
-                    case TextBoxBase _:
-                    case ListControl _:
+                    case TextBoxBase:
+                    case ListControl:
                         break;
                     case Control c:
                         if (_mainFormText.ContainsKey(c.Name))
@@ -201,7 +201,7 @@ namespace Netch.Forms
                         return string.Empty;
 
                     if (value is object[] values)
-                        return i18N.TranslateFormat(values.First() as string, values.Skip(1).ToArray());
+                        return i18N.TranslateFormat((string) values.First(), values.Skip(1).ToArray());
 
                     return i18N.Translate(value);
                 }
@@ -316,10 +316,14 @@ namespace Netch.Forms
                 MenuStrip.Enabled = ConfigurationGroupBox.Enabled = ProfileGroupBox.Enabled = ControlButton.Enabled = v;
             }
 
-            if (useProxy && ServerComboBox.SelectedIndex == -1)
+            var server = ServerComboBox.SelectedItem as Server;
+            if (useProxy)
             {
-                MessageBoxX.Show(i18N.Translate("Please select a server first"));
-                return;
+                if (server == null)
+                {
+                    MessageBoxX.Show(i18N.Translate("Please select a server first"));
+                    return;
+                }
             }
 
             if (Global.Settings.SubscribeLink.Count <= 0)
@@ -332,7 +336,7 @@ namespace Netch.Forms
             DisableItems(false);
             try
             {
-                string proxyServer = null;
+                string? proxyServer = null;
                 if (useProxy)
                 {
                     var mode = new Models.Mode
@@ -341,7 +345,7 @@ namespace Netch.Forms
                         Type = 5
                     };
 
-                    await MainController.Start(ServerComboBox.SelectedItem as Server, mode);
+                    await MainController.Start(server!, mode);
                     proxyServer = $"http://127.0.0.1:{Global.Settings.HTTPLocalPort}";
                 }
 
@@ -437,25 +441,27 @@ namespace Netch.Forms
 
         private async void UpdateACL(bool useProxy)
         {
-            if (useProxy && ServerComboBox.SelectedIndex == -1)
-            {
-                MessageBoxX.Show(i18N.Translate("Please select a server first"));
-                return;
-            }
-
             Enabled = false;
             StatusText(i18N.TranslateFormat("Updating {0}", "ACL"));
             try
             {
                 if (useProxy)
                 {
-                    var mode = new Models.Mode
+                    if (!(ServerComboBox.SelectedItem is Server server))
                     {
-                        Remark = "ProxyUpdate",
-                        Type = 5
-                    };
+                        MessageBoxX.Show(i18N.Translate("Please select a server first"));
+                        return;
+                    }
+                    else
+                    {
+                        var mode = new Models.Mode
+                        {
+                            Remark = "ProxyUpdate",
+                            Type = 5
+                        };
 
-                    await MainController.Start(ServerComboBox.SelectedItem as Server, mode);
+                        await MainController.Start(server, mode);
+                    }
                 }
 
                 var req = WebUtil.CreateRequest(Global.Settings.ACL);
@@ -582,7 +588,7 @@ namespace Netch.Forms
 
         #region ControlButton
 
-        private async void ControlButton_Click(object sender, EventArgs e)
+        private async void ControlButton_Click(object? sender, EventArgs? e)
         {
             if (!IsWaiting())
             {
@@ -723,14 +729,16 @@ namespace Netch.Forms
         private void EditServerPictureBox_Click(object sender, EventArgs e)
         {
             // 当前ServerComboBox中至少有一项
-            if (ServerComboBox.SelectedIndex == -1)
+            if (!(ServerComboBox.SelectedItem is Server server))
             {
                 MessageBoxX.Show(i18N.Translate("Please select a server first"));
                 return;
             }
 
+            if (!server.Valid())
+                return;
+
             Hide();
-            var server = Global.Settings.Server[ServerComboBox.SelectedIndex];
             ServerHelper.GetUtilByTypeName(server.Type).Edit(server);
             LoadServers();
             Configuration.Save();
@@ -768,16 +776,18 @@ namespace Netch.Forms
         private void CopyLinkPictureBox_Click(object sender, EventArgs e)
         {
             // 当前ServerComboBox中至少有一项
-            if (ServerComboBox.SelectedIndex == -1)
+            if (!(ServerComboBox.SelectedItem is Server server))
             {
                 MessageBoxX.Show(i18N.Translate("Please select a server first"));
                 return;
             }
 
+            if (!server.Valid())
+                return;
+
             try
             {
                 //听说巨硬BUG经常会炸，所以Catch一下 :D
-                var server = (Server) ServerComboBox.SelectedItem;
                 string text;
                 if (ModifierKeys == Keys.Control)
                     text = ShareLink.GetNetchLink(server);
@@ -795,13 +805,13 @@ namespace Netch.Forms
         private void DeleteServerPictureBox_Click(object sender, EventArgs e)
         {
             // 当前 ServerComboBox 中至少有一项
-            if (ServerComboBox.SelectedIndex == -1)
+            if (!(ServerComboBox.SelectedItem is Server server))
             {
                 MessageBoxX.Show(i18N.Translate("Please select a server first"));
                 return;
             }
 
-            Global.Settings.Server.Remove(ServerComboBox.SelectedItem as Server);
+            Global.Settings.Server.Remove(server);
             LoadServers();
         }
 
@@ -860,7 +870,7 @@ namespace Netch.Forms
             var mode = (Models.Mode) ModeComboBox.SelectedItem;
             if (ModifierKeys == Keys.Control)
             {
-                Utils.Utils.Open(ModeHelper.GetFullPath(mode.RelativePath));
+                Utils.Utils.Open(ModeHelper.GetFullPath(mode.RelativePath!));
                 return;
             }
 
@@ -878,7 +888,7 @@ namespace Netch.Forms
                     Show();
                     break;
                 default:
-                    Utils.Utils.Open(ModeHelper.GetFullPath(mode.RelativePath));
+                    Utils.Utils.Open(ModeHelper.GetFullPath(mode.RelativePath!));
                     break;
             }
         }
@@ -989,7 +999,7 @@ namespace Netch.Forms
             var mode = (Models.Mode) ModeComboBox.SelectedItem;
             var name = ProfileNameText.Text;
 
-            Profile profile;
+            Profile? profile;
             if ((profile = Global.Settings.Profiles.SingleOrDefault(p => p.Index == index)) != null)
                 Global.Settings.Profiles.Remove(profile);
 
@@ -1001,7 +1011,7 @@ namespace Netch.Forms
         private async void ProfileButton_Click(object sender, EventArgs e)
         {
             var profileButton = (Button) sender;
-            var profile = (Profile) profileButton.Tag;
+            var profile = (Profile?) profileButton.Tag;
             var index = ProfileTable.Controls.IndexOf(profileButton);
 
             switch (ModifierKeys)
@@ -1156,7 +1166,7 @@ namespace Netch.Forms
         ///     更新状态栏文本
         /// </summary>
         /// <param name="text"></param>
-        public void StatusText(string text = null)
+        public void StatusText(string? text = null)
         {
             if (InvokeRequired)
             {
@@ -1184,7 +1194,7 @@ namespace Netch.Forms
             UsedBandwidthLabel.Visible /*= UploadSpeedLabel.Visible*/ = DownloadSpeedLabel.Visible = state;
         }
 
-        public void NatTypeStatusText(string text = "", string country = "")
+        public void NatTypeStatusText(string? text = null, string? country = null)
         {
             if (InvokeRequired)
             {
@@ -1201,7 +1211,7 @@ namespace Netch.Forms
 
             if (!string.IsNullOrEmpty(text))
             {
-                NatTypeStatusLabel.Text = $"NAT{i18N.Translate(": ")}{text} {(country != string.Empty ? $"[{country}]" : "")}";
+                NatTypeStatusLabel.Text = $"NAT{i18N.Translate(": ")}{text} {(!country.IsNullOrEmpty() ? $"[{country}]" : "")}";
 
                 UpdateNatTypeLight(int.TryParse(text, out var natType) ? natType : -1);
             }
@@ -1222,25 +1232,14 @@ namespace Netch.Forms
             if (natType > 0 && natType < 5)
             {
                 NatTypeStatusLightLabel.Visible = Global.Flags.IsWindows10Upper;
-                Color c;
-                switch (natType)
-                {
-                    case 1:
-                        c = Color.LimeGreen;
-                        break;
-                    case 2:
-                        c = Color.Yellow;
-                        break;
-                    case 3:
-                        c = Color.Red;
-                        break;
-                    case 4:
-                        c = Color.Black;
-                        break;
-                    default:
-                        c = Color.Black;
-                        break;
-                }
+                var c = natType switch
+                        {
+                            1 => Color.LimeGreen,
+                            2 => Color.Yellow,
+                            3 => Color.Red,
+                            4 => Color.Black,
+                            _ => throw new ArgumentOutOfRangeException(nameof(natType), natType, null)
+                        };
 
                 NatTypeStatusLightLabel.ForeColor = c;
             }
@@ -1263,7 +1262,7 @@ namespace Netch.Forms
         /// </summary>
         public void NatTest()
         {
-            if (!MainController.Mode.TestNatRequired())
+            if (!MainController.Mode!.TestNatRequired())
                 return;
 
             NttTested = false;
@@ -1275,7 +1274,7 @@ namespace Netch.Forms
 
                 if (!string.IsNullOrEmpty(publicEnd))
                 {
-                    var country = Utils.Utils.GetCityCode(publicEnd);
+                    var country = Utils.Utils.GetCityCode(publicEnd!);
                     NatTypeStatusText(result, country);
                 }
                 else
@@ -1339,7 +1338,7 @@ namespace Netch.Forms
             Hide();
         }
 
-        public async void Exit(bool forceExit = false)
+        public async void Exit(bool forceExit = false, bool saveConfiguration = true)
         {
             if (!IsWaiting() && !Global.Settings.StopWhenExited && !forceExit)
             {
@@ -1352,7 +1351,11 @@ namespace Netch.Forms
             State = State.Terminating;
             NotifyIcon.Visible = false;
             Hide();
-            Configuration.Save();
+
+            if (saveConfiguration)
+            {
+                Configuration.Save();
+            }
 
             foreach (var file in new[] {"data\\last.json", "data\\privoxy.conf"})
                 if (File.Exists(file))
@@ -1412,14 +1415,14 @@ namespace Netch.Forms
                 NewVersionLabel.Visible = true;
             };
 
-            UpdateChecker.Check(Global.Settings.CheckBetaUpdate);
+            UpdateChecker.Check(Global.Settings.CheckBetaUpdate).Wait();
         }
 
         private async void NewVersionLabel_Click(object sender, EventArgs e)
         {
-            if (!UpdateChecker.LatestRelease.assets.Any())
+            if (ModifierKeys == Keys.Control || !UpdateChecker.LatestRelease!.assets.Any())
             {
-                Utils.Utils.Open(UpdateChecker.LatestVersionUrl);
+                Utils.Utils.Open(UpdateChecker.LatestVersionUrl!);
                 return;
             }
 
@@ -1437,7 +1440,7 @@ namespace Netch.Forms
                     BeginInvoke(new Action(() => { NewVersionLabel.Text = $"{args.ProgressPercentage}%"; }));
                 }
 
-                await UpdateChecker.DownloadUpdate(OnDownloadProgressChanged);
+                await Updater.Updater.DownloadAndUpdate(Path.Combine(Global.NetchDir, "data"), Global.NetchDir, OnDownloadProgressChanged);
             }
             catch (Exception exception)
             {
@@ -1508,7 +1511,7 @@ namespace Netch.Forms
             Exit();
         }
 
-        private void NotifyIcon_MouseDoubleClick(object sender, MouseEventArgs e)
+        private void NotifyIcon_MouseDoubleClick(object? sender, MouseEventArgs? e)
         {
             if (WindowState == FormWindowState.Minimized)
             {

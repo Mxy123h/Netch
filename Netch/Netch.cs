@@ -28,7 +28,7 @@ namespace Netch
                 Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process) + ";" + Path.Combine(Global.NetchDir, "bin"),
                 EnvironmentVariableTarget.Process);
 
-            Updater.Updater.CleanOld();
+            Updater.Updater.CleanOld(Global.NetchDir);
 
             // 预创建目录
             var directories = new[] {"mode\\Custom", "data", "i18n", "logging"};
@@ -84,7 +84,7 @@ namespace Netch
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(Global.MainForm = new MainForm());
+            Application.Run(Global.MainForm);
         }
 
         public static void Application_OnException(object sender, ThreadExceptionEventArgs e)

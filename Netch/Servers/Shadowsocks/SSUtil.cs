@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using Netch.Controllers;
@@ -8,8 +9,6 @@ using Netch.Models;
 using Netch.Servers.Shadowsocks.Form;
 using Netch.Servers.Shadowsocks.Models.SSD;
 using Netch.Utils;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Netch.Servers.Shadowsocks
 {
@@ -25,10 +24,7 @@ namespace Netch.Servers.Shadowsocks
 
         public string[] UriScheme { get; } = {"ss", "ssd"};
 
-        public Server ParseJObject(in JObject j)
-        {
-            return j.ToObject<Shadowsocks>();
-        }
+        public Type ServerType { get; } = typeof(Shadowsocks);
 
         public void Edit(Server s)
         {
@@ -61,7 +57,7 @@ namespace Netch.Servers.Shadowsocks
             if (text.StartsWith("ssd://"))
                 return ParseSsdUri(text);
 
-            return null;
+            throw new FormatException();
         }
 
         public bool CheckServer(Server s)
@@ -80,7 +76,7 @@ namespace Netch.Servers.Shadowsocks
 
         public IEnumerable<Server> ParseSsdUri(string s)
         {
-            var json = JsonConvert.DeserializeObject<Main>(ShareLink.URLSafeBase64Decode(s.Substring(6)));
+            var json = JsonSerializer.Deserialize<Main>(ShareLink.URLSafeBase64Decode(s.Substring(6)));
 
             return json.servers.Select(server => new Shadowsocks
                 {
@@ -102,93 +98,82 @@ namespace Netch.Servers.Shadowsocks
             var data = new Shadowsocks();
 
             text = text.Replace("/?", "?");
-            try
+            if (text.Contains("#"))
             {
-                if (text.Contains("#"))
-                {
-                    data.Remark = HttpUtility.UrlDecode(text.Split('#')[1]);
-                    text = text.Split('#')[0];
-                }
-
-                if (text.Contains("?"))
-                {
-                    var finder = new Regex(@"^(?<data>.+?)\?(.+)$");
-                    var match = finder.Match(text);
-
-                    if (match.Success)
-                    {
-                        var plugins = HttpUtility.UrlDecode(HttpUtility.ParseQueryString(new Uri(text).Query).Get("plugin"));
-                        if (plugins != null)
-                        {
-                            var plugin = plugins.Substring(0, plugins.IndexOf(";", StringComparison.Ordinal));
-                            var pluginopts = plugins.Substring(plugins.IndexOf(";", StringComparison.Ordinal) + 1);
-                            switch (plugin)
-                            {
-                                case "obfs-local":
-                                case "simple-obfs":
-                                    plugin = "simple-obfs";
-                                    if (!pluginopts.Contains("obfs="))
-                                        pluginopts = "obfs=http;obfs-host=" + pluginopts;
-
-                                    break;
-                                case "simple-obfs-tls":
-                                    plugin = "simple-obfs";
-                                    if (!pluginopts.Contains("obfs="))
-                                        pluginopts = "obfs=tls;obfs-host=" + pluginopts;
-
-                                    break;
-                            }
-
-                            data.Plugin = plugin;
-                            data.PluginOption = pluginopts;
-                        }
-
-                        text = match.Groups["data"].Value;
-                    }
-                    else
-                    {
-                        throw new FormatException();
-                    }
-                }
-
-                if (text.Contains("@"))
-                {
-                    var finder = new Regex(@"^ss://(?<base64>.+?)@(?<server>.+):(?<port>\d+)");
-                    var parser = new Regex(@"^(?<method>.+?):(?<password>.+)$");
-                    var match = finder.Match(text);
-                    if (!match.Success)
-                        throw new FormatException();
-
-                    data.Hostname = match.Groups["server"].Value;
-                    data.Port = ushort.Parse(match.Groups["port"].Value);
-
-                    var base64 = ShareLink.URLSafeBase64Decode(match.Groups["base64"].Value);
-                    match = parser.Match(base64);
-                    if (!match.Success)
-                        throw new FormatException();
-
-                    data.EncryptMethod = match.Groups["method"].Value;
-                    data.Password = match.Groups["password"].Value;
-                }
-                else
-                {
-                    var parser = new Regex(@"^((?<method>.+?):(?<password>.+)@(?<server>.+):(?<port>\d+))");
-                    var match = parser.Match(ShareLink.URLSafeBase64Decode(text.Replace("ss://", "")));
-                    if (!match.Success)
-                        throw new FormatException();
-
-                    data.Hostname = match.Groups["server"].Value;
-                    data.Port = ushort.Parse(match.Groups["port"].Value);
-                    data.EncryptMethod = match.Groups["method"].Value;
-                    data.Password = match.Groups["password"].Value;
-                }
-
-                return CheckServer(data) ? data : null;
+                data.Remark = HttpUtility.UrlDecode(text.Split('#')[1]);
+                text = text.Split('#')[0];
             }
-            catch (FormatException)
+
+            if (text.Contains("?"))
             {
-                return null;
+                var finder = new Regex(@"^(?<data>.+?)\?(.+)$");
+                var match = finder.Match(text);
+
+                if (!match.Success)
+                    throw new FormatException();
+
+                var plugins = HttpUtility.UrlDecode(HttpUtility.ParseQueryString(new Uri(text).Query).Get("plugin"));
+                if (plugins != null)
+                {
+                    var plugin = plugins.Substring(0, plugins.IndexOf(";", StringComparison.Ordinal));
+                    var pluginopts = plugins.Substring(plugins.IndexOf(";", StringComparison.Ordinal) + 1);
+                    switch (plugin)
+                    {
+                        case "obfs-local":
+                        case "simple-obfs":
+                            plugin = "simple-obfs";
+                            if (!pluginopts.Contains("obfs="))
+                                pluginopts = "obfs=http;obfs-host=" + pluginopts;
+
+                            break;
+                        case "simple-obfs-tls":
+                            plugin = "simple-obfs";
+                            if (!pluginopts.Contains("obfs="))
+                                pluginopts = "obfs=tls;obfs-host=" + pluginopts;
+
+                            break;
+                    }
+
+                    data.Plugin = plugin;
+                    data.PluginOption = pluginopts;
+                }
+
+                text = match.Groups["data"].Value;
             }
+
+            if (text.Contains("@"))
+            {
+                var finder = new Regex(@"^ss://(?<base64>.+?)@(?<server>.+):(?<port>\d+)");
+                var parser = new Regex(@"^(?<method>.+?):(?<password>.+)$");
+                var match = finder.Match(text);
+                if (!match.Success)
+                    throw new FormatException();
+
+                data.Hostname = match.Groups["server"].Value;
+                data.Port = ushort.Parse(match.Groups["port"].Value);
+
+                var base64 = ShareLink.URLSafeBase64Decode(match.Groups["base64"].Value);
+                match = parser.Match(base64);
+                if (!match.Success)
+                    throw new FormatException();
+
+                data.EncryptMethod = match.Groups["method"].Value;
+                data.Password = match.Groups["password"].Value;
+            }
+            else
+            {
+                var parser = new Regex(@"^((?<method>.+?):(?<password>.+)@(?<server>.+):(?<port>\d+))");
+                var match = parser.Match(ShareLink.URLSafeBase64Decode(text.Replace("ss://", "")));
+                if (!match.Success)
+                    throw new FormatException();
+
+                data.Hostname = match.Groups["server"].Value;
+                data.Port = ushort.Parse(match.Groups["port"].Value);
+                data.EncryptMethod = match.Groups["method"].Value;
+                data.Password = match.Groups["password"].Value;
+            }
+
+            return CheckServer(data) ? data : throw new FormatException();
         }
     }
 }
