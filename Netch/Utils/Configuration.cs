@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Netch.Models;
 
 namespace Netch.Utils
@@ -22,6 +23,7 @@ namespace Netch.Utils
         static Configuration()
         {
             JsonSerializerOptions.Converters.Add(new ServerConverterWithTypeDiscriminator());
+            JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         }
 
         /// <summary>
@@ -51,8 +53,7 @@ namespace Netch.Utils
 
                 #region Check Profile
 
-                foreach (var profile in settings.Profiles.Where(p => p.ServerRemark == string.Empty || p.ModeRemark == string.Empty)!)
-                    settings.Profiles.Remove(profile);
+                settings.Profiles.RemoveAll(p => p.ServerRemark == string.Empty || p.ModeRemark == string.Empty);
 
                 if (settings.Profiles.Any(p => settings.Profiles.Any(p1 => p1 != p && p1.Index == p.Index)))
                     for (var i = 0; i < settings.Profiles.Count; i++)
@@ -65,7 +66,9 @@ namespace Netch.Utils
             catch (Exception e)
             {
                 Logging.Error(e.ToString());
-                return new Setting();
+                Utils.Open(Logging.LogFile);
+                Environment.Exit(-1);
+                return null!;
             }
         }
 

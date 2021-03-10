@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MaxMind.GeoIP2;
 using Microsoft.Win32.TaskScheduler;
-using Vanara.PInvoke;
 using Task = System.Threading.Tasks.Task;
 
 namespace Netch.Utils
@@ -22,6 +21,8 @@ namespace Netch.Utils
     {
         public static bool Open(string path)
         {
+            if (Global.Testing)
+                return true;
             try
             {
                 Process.Start(new ProcessStartInfo
@@ -85,7 +86,7 @@ namespace Netch.Utils
                 }
                 else
                 {
-                    var dnsResult = DNS.Lookup(Hostname);
+                    var dnsResult = DnsUtils.Lookup(Hostname);
 
                     if (dnsResult != null)
                         country = databaseReader.Country(dnsResult).Country.IsoCode;
@@ -138,40 +139,6 @@ namespace Netch.Utils
             return File.Exists(file) ? FileVersionInfo.GetVersionInfo(file).FileVersion : string.Empty;
         }
 
-        public static void SearchOutboundAdapter(bool logging = true)
-        {
-            // 寻找出口适配器
-            if (IpHlpApi.GetBestRoute(BitConverter.ToUInt32(IPAddress.Parse("114.114.114.114").GetAddressBytes(), 0), 0, out var pRoute) != 0)
-            {
-                Logging.Error("GetBestRoute 搜索失败");
-                throw new Exception("GetBestRoute 搜索失败");
-            }
-
-            Global.Outbound.Index = (int) pRoute.dwForwardIfIndex;
-            // 根据 IP Index 寻找 出口适配器
-            var adapter = NetworkInterface.GetAllNetworkInterfaces()
-                .First(_ =>
-                {
-                    try
-                    {
-                        return _.GetIPProperties().GetIPv4Properties().Index == Global.Outbound.Index;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-
-            Global.Outbound.Adapter = adapter;
-            Global.Outbound.Gateway = new IPAddress(pRoute.dwForwardNextHop.S_un_b);
-
-            if (logging)
-            {
-                Logging.Info($"出口 IPv4 地址：{Global.Outbound.Address}");
-                Logging.Info($"出口 网关 地址：{Global.Outbound.Gateway}");
-                Logging.Info($"出口适配器：{adapter.Name} {adapter.Id} {adapter.Description}, index: {Global.Outbound.Index}");
-            }
-        }
 
         public static void DrawCenterComboBox(object sender, DrawItemEventArgs e)
         {

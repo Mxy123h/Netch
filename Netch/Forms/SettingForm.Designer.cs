@@ -31,7 +31,6 @@ namespace Netch.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SettingForm));
             this.TabControl = new System.Windows.Forms.TabControl();
             this.GeneralTabPage = new System.Windows.Forms.TabPage();
             this.ServerPingTypeLabel = new System.Windows.Forms.Label();
@@ -60,12 +59,17 @@ namespace Netch.Forms
             this.LanguageLabel = new System.Windows.Forms.Label();
             this.LanguageComboBox = new System.Windows.Forms.ComboBox();
             this.NFTabPage = new System.Windows.Forms.TabPage();
-            this.NoProxyForTcpCheckBox = new System.Windows.Forms.CheckBox();
-            this.NoProxyForUdpCheckBox = new System.Windows.Forms.CheckBox();
-            this.ModifySystemDNSCheckBox = new System.Windows.Forms.CheckBox();
-            this.ModifiedDNSLabel = new System.Windows.Forms.Label();
+            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.DNSRedirectorCheckBox = new System.Windows.Forms.CheckBox();
             this.ModifiedDNSTextBox = new System.Windows.Forms.TextBox();
+            this.ModifiedICMPTextBox = new System.Windows.Forms.TextBox();
+            this.ICMPRedirectorCheckBox = new System.Windows.Forms.CheckBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.ModifiedDNSLabel = new System.Windows.Forms.Label();
+            this.ChildProcessHandleCheckBox = new System.Windows.Forms.CheckBox();
             this.RedirectorSSCheckBox = new System.Windows.Forms.CheckBox();
+            this.ProcessProxyProtocolLabel = new System.Windows.Forms.Label();
+            this.ProcessProxyProtocolComboBox = new System.Windows.Forms.ComboBox();
             this.TAPTabPage = new System.Windows.Forms.TabPage();
             this.TUNTAPGroupBox = new System.Windows.Forms.GroupBox();
             this.TUNTAPAddressLabel = new System.Windows.Forms.Label();
@@ -79,10 +83,10 @@ namespace Netch.Forms
             this.UseCustomDNSCheckBox = new System.Windows.Forms.CheckBox();
             this.ProxyDNSCheckBox = new System.Windows.Forms.CheckBox();
             this.UseFakeDNSCheckBox = new System.Windows.Forms.CheckBox();
-            new System.Windows.Forms.CheckBox();
             this.GlobalBypassIPsButton = new System.Windows.Forms.Button();
             this.v2rayTabPage = new System.Windows.Forms.TabPage();
             this.TLSAllowInsecureCheckBox = new System.Windows.Forms.CheckBox();
+            this.XrayConeCheckBox = new System.Windows.Forms.CheckBox();
             this.UseMuxCheckBox = new System.Windows.Forms.CheckBox();
             this.KCPGroupBox = new System.Windows.Forms.GroupBox();
             this.mtuLabel = new System.Windows.Forms.Label();
@@ -116,11 +120,11 @@ namespace Netch.Forms
             this.OtherDNSTextBox = new System.Windows.Forms.TextBox();
             this.ControlButton = new System.Windows.Forms.Button();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
-            this.XrayConeCheckBox = new System.Windows.Forms.CheckBox();
             this.TabControl.SuspendLayout();
             this.GeneralTabPage.SuspendLayout();
             this.PortGroupBox.SuspendLayout();
             this.NFTabPage.SuspendLayout();
+            this.groupBox1.SuspendLayout();
             this.TAPTabPage.SuspendLayout();
             this.TUNTAPGroupBox.SuspendLayout();
             this.v2rayTabPage.SuspendLayout();
@@ -408,12 +412,11 @@ namespace Netch.Forms
             // NFTabPage
             // 
             this.NFTabPage.BackColor = System.Drawing.SystemColors.ButtonFace;
-            this.NFTabPage.Controls.Add(this.NoProxyForTcpCheckBox);
-            this.NFTabPage.Controls.Add(this.NoProxyForUdpCheckBox);
-            this.NFTabPage.Controls.Add(this.ModifySystemDNSCheckBox);
-            this.NFTabPage.Controls.Add(this.ModifiedDNSLabel);
-            this.NFTabPage.Controls.Add(this.ModifiedDNSTextBox);
+            this.NFTabPage.Controls.Add(this.groupBox1);
+            this.NFTabPage.Controls.Add(this.ChildProcessHandleCheckBox);
             this.NFTabPage.Controls.Add(this.RedirectorSSCheckBox);
+            this.NFTabPage.Controls.Add(this.ProcessProxyProtocolLabel);
+            this.NFTabPage.Controls.Add(this.ProcessProxyProtocolComboBox);
             this.NFTabPage.Location = new System.Drawing.Point(4, 25);
             this.NFTabPage.Name = "NFTabPage";
             this.NFTabPage.Padding = new System.Windows.Forms.Padding(3);
@@ -421,65 +424,113 @@ namespace Netch.Forms
             this.NFTabPage.TabIndex = 1;
             this.NFTabPage.Text = "Process Mode";
             // 
-            // NoProxyForTcpCheckBox
+            // groupBox1
             // 
-            this.NoProxyForTcpCheckBox.AutoSize = true;
-            this.NoProxyForTcpCheckBox.Location = new System.Drawing.Point(8, 82);
-            this.NoProxyForTcpCheckBox.Name = "NoProxyForTcpCheckBox";
-            this.NoProxyForTcpCheckBox.Size = new System.Drawing.Size(120, 16);
-            this.NoProxyForTcpCheckBox.TabIndex = 4;
-            this.NoProxyForTcpCheckBox.Text = "No Proxy for Tcp";
-            this.NoProxyForTcpCheckBox.UseVisualStyleBackColor = true;
-            this.NoProxyForTcpCheckBox.CheckedChanged += new System.EventHandler(this.NoProxyForTcpCheckBox_CheckedChanged);
+            this.groupBox1.Controls.Add(this.DNSRedirectorCheckBox);
+            this.groupBox1.Controls.Add(this.ModifiedDNSTextBox);
+            this.groupBox1.Controls.Add(this.ModifiedICMPTextBox);
+            this.groupBox1.Controls.Add(this.label1);
+            this.groupBox1.Controls.Add(this.ModifiedDNSLabel);
+            this.groupBox1.Controls.Add(this.ICMPRedirectorCheckBox);
+            this.groupBox1.Location = new System.Drawing.Point(5, 6);
+            this.groupBox1.Name = "groupBox1";
+            this.groupBox1.Size = new System.Drawing.Size(450, 81);
+            this.groupBox1.TabIndex = 8;
+            this.groupBox1.TabStop = false;
             // 
-            // NoProxyForUdpCheckBox
+            // DNSRedirectorCheckBox
             // 
-            this.NoProxyForUdpCheckBox.AutoSize = true;
-            this.NoProxyForUdpCheckBox.Location = new System.Drawing.Point(8, 60);
-            this.NoProxyForUdpCheckBox.Name = "NoProxyForUdpCheckBox";
-            this.NoProxyForUdpCheckBox.Size = new System.Drawing.Size(120, 16);
-            this.NoProxyForUdpCheckBox.TabIndex = 3;
-            this.NoProxyForUdpCheckBox.Text = "No Proxy for Udp";
-            this.NoProxyForUdpCheckBox.UseVisualStyleBackColor = true;
-            this.NoProxyForUdpCheckBox.CheckedChanged += new System.EventHandler(this.NoProxyForUdpCheckBox_CheckedChanged);
+            this.DNSRedirectorCheckBox.AutoSize = true;
+            this.DNSRedirectorCheckBox.Location = new System.Drawing.Point(6, 20);
+            this.DNSRedirectorCheckBox.Name = "DNSRedirectorCheckBox";
+            this.DNSRedirectorCheckBox.Size = new System.Drawing.Size(108, 16);
+            this.DNSRedirectorCheckBox.TabIndex = 0;
+            this.DNSRedirectorCheckBox.Text = "DNS Redirector";
+            this.DNSRedirectorCheckBox.UseVisualStyleBackColor = true;
             // 
-            // ModifySystemDNSCheckBox
+            // ModifiedDNSTextBox
             // 
-            this.ModifySystemDNSCheckBox.AutoSize = true;
-            this.ModifySystemDNSCheckBox.Location = new System.Drawing.Point(8, 16);
-            this.ModifySystemDNSCheckBox.Name = "ModifySystemDNSCheckBox";
-            this.ModifySystemDNSCheckBox.Size = new System.Drawing.Size(126, 16);
-            this.ModifySystemDNSCheckBox.TabIndex = 0;
-            this.ModifySystemDNSCheckBox.Text = "Modify System DNS";
-            this.ModifySystemDNSCheckBox.UseVisualStyleBackColor = true;
+            this.ModifiedDNSTextBox.DataBindings.Add(new System.Windows.Forms.Binding("Enabled", this.DNSRedirectorCheckBox, "Checked", true));
+            this.ModifiedDNSTextBox.Location = new System.Drawing.Point(253, 15);
+            this.ModifiedDNSTextBox.Name = "ModifiedDNSTextBox";
+            this.ModifiedDNSTextBox.Size = new System.Drawing.Size(191, 21);
+            this.ModifiedDNSTextBox.TabIndex = 1;
+            this.ModifiedDNSTextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // ModifiedICMPTextBox
+            // 
+            this.ModifiedICMPTextBox.DataBindings.Add(new System.Windows.Forms.Binding("Enabled", this.ICMPRedirectorCheckBox, "Checked", true));
+            this.ModifiedICMPTextBox.Location = new System.Drawing.Point(253, 47);
+            this.ModifiedICMPTextBox.Name = "ModifiedICMPTextBox";
+            this.ModifiedICMPTextBox.Size = new System.Drawing.Size(191, 21);
+            this.ModifiedICMPTextBox.TabIndex = 5;
+            this.ModifiedICMPTextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // ICMPRedirectorCheckBox
+            // 
+            this.ICMPRedirectorCheckBox.AutoSize = true;
+            this.ICMPRedirectorCheckBox.Location = new System.Drawing.Point(6, 50);
+            this.ICMPRedirectorCheckBox.Name = "ICMPRedirectorCheckBox";
+            this.ICMPRedirectorCheckBox.Size = new System.Drawing.Size(114, 16);
+            this.ICMPRedirectorCheckBox.TabIndex = 4;
+            this.ICMPRedirectorCheckBox.Text = "ICMP Redirector";
+            this.ICMPRedirectorCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(218, 50);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(29, 12);
+            this.label1.TabIndex = 6;
+            this.label1.Text = "ICMP";
             // 
             // ModifiedDNSLabel
             // 
             this.ModifiedDNSLabel.AutoSize = true;
-            this.ModifiedDNSLabel.Location = new System.Drawing.Point(223, 17);
+            this.ModifiedDNSLabel.Location = new System.Drawing.Point(224, 21);
             this.ModifiedDNSLabel.Name = "ModifiedDNSLabel";
             this.ModifiedDNSLabel.Size = new System.Drawing.Size(23, 12);
             this.ModifiedDNSLabel.TabIndex = 2;
             this.ModifiedDNSLabel.Text = "DNS";
             // 
-            // ModifiedDNSTextBox
+            // ChildProcessHandleCheckBox
             // 
-            this.ModifiedDNSTextBox.DataBindings.Add(new System.Windows.Forms.Binding("Enabled", this.ModifySystemDNSCheckBox, "Checked", true));
-            this.ModifiedDNSTextBox.Location = new System.Drawing.Point(264, 14);
-            this.ModifiedDNSTextBox.Name = "ModifiedDNSTextBox";
-            this.ModifiedDNSTextBox.Size = new System.Drawing.Size(194, 21);
-            this.ModifiedDNSTextBox.TabIndex = 1;
-            this.ModifiedDNSTextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.ChildProcessHandleCheckBox.AutoSize = true;
+            this.ChildProcessHandleCheckBox.Location = new System.Drawing.Point(11, 119);
+            this.ChildProcessHandleCheckBox.Name = "ChildProcessHandleCheckBox";
+            this.ChildProcessHandleCheckBox.Size = new System.Drawing.Size(144, 16);
+            this.ChildProcessHandleCheckBox.TabIndex = 7;
+            this.ChildProcessHandleCheckBox.Text = "Child Process Handle";
+            this.ChildProcessHandleCheckBox.UseVisualStyleBackColor = true;
             // 
             // RedirectorSSCheckBox
             // 
             this.RedirectorSSCheckBox.AutoSize = true;
-            this.RedirectorSSCheckBox.Location = new System.Drawing.Point(8, 38);
+            this.RedirectorSSCheckBox.Location = new System.Drawing.Point(11, 97);
             this.RedirectorSSCheckBox.Name = "RedirectorSSCheckBox";
             this.RedirectorSSCheckBox.Size = new System.Drawing.Size(102, 16);
             this.RedirectorSSCheckBox.TabIndex = 0;
             this.RedirectorSSCheckBox.Text = "Redirector SS";
             this.RedirectorSSCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // ProcessProxyProtocolLabel
+            // 
+            this.ProcessProxyProtocolLabel.AutoSize = true;
+            this.ProcessProxyProtocolLabel.Location = new System.Drawing.Point(163, 98);
+            this.ProcessProxyProtocolLabel.Name = "ProcessProxyProtocolLabel";
+            this.ProcessProxyProtocolLabel.Size = new System.Drawing.Size(89, 12);
+            this.ProcessProxyProtocolLabel.TabIndex = 2;
+            this.ProcessProxyProtocolLabel.Text = "Proxy Protocol";
+            // 
+            // ProcessProxyProtocolComboBox
+            // 
+            this.ProcessProxyProtocolComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.ProcessProxyProtocolComboBox.FormattingEnabled = true;
+            this.ProcessProxyProtocolComboBox.Location = new System.Drawing.Point(258, 93);
+            this.ProcessProxyProtocolComboBox.Name = "ProcessProxyProtocolComboBox";
+            this.ProcessProxyProtocolComboBox.Size = new System.Drawing.Size(191, 20);
+            this.ProcessProxyProtocolComboBox.TabIndex = 3;
             // 
             // TAPTabPage
             // 
@@ -596,11 +647,11 @@ namespace Netch.Forms
             // ProxyDNSCheckBox
             // 
             this.ProxyDNSCheckBox.AutoSize = true;
-            this.ProxyDNSCheckBox.Location = new System.Drawing.Point(261, 139);
+            this.ProxyDNSCheckBox.Location = new System.Drawing.Point(175, 139);
             this.ProxyDNSCheckBox.Name = "ProxyDNSCheckBox";
-            this.ProxyDNSCheckBox.Size = new System.Drawing.Size(138, 16);
+            this.ProxyDNSCheckBox.Size = new System.Drawing.Size(216, 16);
             this.ProxyDNSCheckBox.TabIndex = 9;
-            this.ProxyDNSCheckBox.Text = "Proxy DNS in Mode 2";
+            this.ProxyDNSCheckBox.Text = "Proxy DNS in Proxy Rule IPs Mode";
             this.ProxyDNSCheckBox.UseVisualStyleBackColor = true;
             // 
             // UseFakeDNSCheckBox
@@ -647,6 +698,16 @@ namespace Netch.Forms
             this.TLSAllowInsecureCheckBox.TabIndex = 0;
             this.TLSAllowInsecureCheckBox.Text = "TLS AllowInsecure";
             this.TLSAllowInsecureCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // XrayConeCheckBox
+            // 
+            this.XrayConeCheckBox.AutoSize = true;
+            this.XrayConeCheckBox.Location = new System.Drawing.Point(6, 15);
+            this.XrayConeCheckBox.Name = "XrayConeCheckBox";
+            this.XrayConeCheckBox.Size = new System.Drawing.Size(336, 16);
+            this.XrayConeCheckBox.TabIndex = 1;
+            this.XrayConeCheckBox.Text = "FullCone Support (Required Server Xray-core v1.3.0+)";
+            this.XrayConeCheckBox.UseVisualStyleBackColor = true;
             // 
             // UseMuxCheckBox
             // 
@@ -965,7 +1026,7 @@ namespace Netch.Forms
             // 
             // ControlButton
             // 
-            this.ControlButton.Anchor = ((System.Windows.Forms.AnchorStyles) ((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.ControlButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.ControlButton.Location = new System.Drawing.Point(397, 363);
             this.ControlButton.Name = "ControlButton";
             this.ControlButton.Size = new System.Drawing.Size(75, 23);
@@ -986,16 +1047,6 @@ namespace Netch.Forms
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
             this.flowLayoutPanel1.Size = new System.Drawing.Size(480, 400);
             this.flowLayoutPanel1.TabIndex = 0;
-            // 
-            // XrayConeCheckBox
-            // 
-            this.XrayConeCheckBox.AutoSize = true;
-            this.XrayConeCheckBox.Location = new System.Drawing.Point(6, 15);
-            this.XrayConeCheckBox.Name = "XrayConeCheckBox";
-            this.XrayConeCheckBox.Size = new System.Drawing.Size(78, 16);
-            this.XrayConeCheckBox.TabIndex = 1;
-            this.XrayConeCheckBox.Text = "FullCone Support (Required Server Xray-core v1.3.0+)";
-            this.XrayConeCheckBox.UseVisualStyleBackColor = true;
             // 
             // SettingForm
             // 
@@ -1018,6 +1069,8 @@ namespace Netch.Forms
             this.PortGroupBox.PerformLayout();
             this.NFTabPage.ResumeLayout(false);
             this.NFTabPage.PerformLayout();
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
             this.TAPTabPage.ResumeLayout(false);
             this.TUNTAPGroupBox.ResumeLayout(false);
             this.TUNTAPGroupBox.PerformLayout();
@@ -1032,10 +1085,10 @@ namespace Netch.Forms
             this.flowLayoutPanel1.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
+
         }
         private System.Windows.Forms.CheckBox XrayConeCheckBox;
         private System.Windows.Forms.TextBox StartedPingIntervalTextBox;
-        private System.Windows.Forms.CheckBox NoProxyForTcpCheckBox;
 
         #endregion
 
@@ -1067,7 +1120,7 @@ namespace Netch.Forms
         private System.Windows.Forms.Label TUNTAPAddressLabel;
         private System.Windows.Forms.TextBox TUNTAPAddressTextBox;
         private System.Windows.Forms.Button GlobalBypassIPsButton;
-        private System.Windows.Forms.CheckBox ModifySystemDNSCheckBox;
+        private System.Windows.Forms.CheckBox DNSRedirectorCheckBox;
         private System.Windows.Forms.Button ControlButton;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
         private System.Windows.Forms.TabPage OtherTabPage;
@@ -1116,9 +1169,15 @@ namespace Netch.Forms
         private System.Windows.Forms.TextBox ModifiedDNSTextBox;
         private System.Windows.Forms.Label ModifiedDNSLabel;
         private System.Windows.Forms.CheckBox RedirectorSSCheckBox;
-        private System.Windows.Forms.CheckBox NoProxyForUdpCheckBox;
         private System.Windows.Forms.Label ServerPingTypeLabel;
         private System.Windows.Forms.RadioButton TCPingRadioBtn;
         private System.Windows.Forms.RadioButton ICMPingRadioBtn;
+        private System.Windows.Forms.ComboBox ProcessProxyProtocolComboBox;
+        private System.Windows.Forms.Label ProcessProxyProtocolLabel;
+        private System.Windows.Forms.CheckBox ICMPRedirectorCheckBox;
+        private System.Windows.Forms.TextBox ModifiedICMPTextBox;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.CheckBox ChildProcessHandleCheckBox;
+        private System.Windows.Forms.GroupBox groupBox1;
     }
 }

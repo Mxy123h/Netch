@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Netch.Models;
@@ -50,7 +49,12 @@ namespace Netch.Controllers
         /// <param name="mode">模式</param>
         /// <returns>是否启动成功</returns>
         /// <exception cref="MessageException"></exception>
-        public static async Task Start(Server server, Mode mode)
+        public static async Task StartAsync(Server server, Mode mode)
+        {
+            await Task.Run(() => Start(server, mode));
+        }
+
+        public static void Start(Server server, Mode mode)
         {
             Logging.Info($"启动主控制器: {server.Type} [{mode.Type}]{mode.Remark}");
             Server = server;
@@ -62,16 +66,7 @@ namespace Netch.Controllers
             // 刷新DNS缓存
             NativeMethods.FlushDNSResolverCache();
 
-            try
-            {
-                WebUtil.BestLocalEndPoint(new IPEndPoint(0x72727272, 53));
-            }
-            catch (Exception)
-            {
-                throw new MessageException(i18N.Translate("No internet connection"));
-            }
-
-            if (Global.Settings.ResolveServerHostname && DNS.Lookup(server.Hostname) == null)
+            if (DnsUtils.Lookup(server.Hostname) == null)
                 throw new MessageException(i18N.Translate("Lookup Server hostname failed"));
 
             // 添加Netch到防火墙
@@ -81,23 +76,15 @@ namespace Netch.Controllers
             {
                 if (!ModeHelper.SkipServerController(server, mode))
                 {
-                    await Task.Run(() => StartServer(server, mode, out _serverController));
-
+                    StartServer(server, mode, out _serverController);
                     StatusPortInfoText.UpdateShareLan();
                 }
 
-                await Task.Run(() => StartMode(mode));
+                StartMode(mode);
             }
             catch (Exception e)
             {
-                try
-                {
-                    await Stop();
-                }
-                catch
-                {
-                    // ignored
-                }
+                Stop();
 
                 switch (e)
                 {
@@ -161,10 +148,15 @@ namespace Netch.Controllers
                 Global.Job.AddProcess(guard.Instance!);
         }
 
+        public static async Task StopAsync()
+        {
+            await Task.Run(Stop);
+        }
+
         /// <summary>
         ///     停止
         /// </summary>
-        public static async Task Stop()
+        public static void Stop()
         {
             if (_serverController == null && ModeController == null)
                 return;
@@ -179,7 +171,16 @@ namespace Netch.Controllers
                 Task.Run(() => ModeController?.Stop())
             };
 
-            await Task.WhenAll(tasks);
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (Exception e)
+            {
+                Logging.Error(e.ToString());
+                Utils.Utils.Open(Logging.LogFile);
+            }
+
             ModeController = null;
             ServerController = null;
         }

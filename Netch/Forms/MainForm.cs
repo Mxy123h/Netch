@@ -85,8 +85,6 @@ namespace Netch.Forms
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            OnlyInstance.Called += OnCalled;
-
             // 计算 ComboBox绘制 目标宽度
             RecordSize();
 
@@ -106,10 +104,6 @@ namespace Netch.Forms
             // 加载快速配置
             LoadProfiles();
 
-            // 打开软件时启动加速，产生开始按钮点击事件
-            if (Global.Settings.StartWhenOpened)
-                ControlButton_Click(null, null);
-
             Task.Run(() =>
             {
                 // 检查更新
@@ -117,11 +111,15 @@ namespace Netch.Forms
                     CheckUpdate();
             });
 
-            Task.Run(async () =>
+            Task.Run(() =>
             {
                 // 检查订阅更新
                 if (Global.Settings.UpdateServersWhenOpened)
-                    await UpdateServersFromSubscribe(Global.Settings.UseProxyToUpdateSubscription);
+                    UpdateServersFromSubscribe(Global.Settings.UseProxyToUpdateSubscription).Wait();
+
+                // 打开软件时启动加速，产生开始按钮点击事件
+                if (Global.Settings.StartWhenOpened)
+                    ControlButton_Click(null, null);
             });
         }
 
@@ -345,7 +343,7 @@ namespace Netch.Forms
                         Type = 5
                     };
 
-                    await MainController.Start(server!, mode);
+                    await MainController.StartAsync(server!, mode);
                     proxyServer = $"http://127.0.0.1:{Global.Settings.HTTPLocalPort}";
                 }
 
@@ -363,14 +361,7 @@ namespace Netch.Forms
             finally
             {
                 if (useProxy)
-                    try
-                    {
-                        await MainController.Stop();
-                    }
-                    catch
-                    {
-                        // ignored
-                    }
+                    await MainController.StopAsync();
 
                 DisableItems(true);
             }
@@ -386,19 +377,25 @@ namespace Netch.Forms
             {
                 void OnNewVersionNotFound(object o, EventArgs args)
                 {
-                    UpdateChecker.NewVersionNotFound -= OnNewVersionNotFound;
                     NotifyTip(i18N.Translate("Already latest version"));
                 }
 
                 void OnNewVersionFoundFailed(object o, EventArgs args)
                 {
-                    UpdateChecker.NewVersionFoundFailed -= OnNewVersionFoundFailed;
                     NotifyTip(i18N.Translate("New version found failed"), info: false);
                 }
 
-                UpdateChecker.NewVersionNotFound += OnNewVersionNotFound;
-                UpdateChecker.NewVersionFoundFailed += OnNewVersionFoundFailed;
-                CheckUpdate();
+                try
+                {
+                    UpdateChecker.NewVersionNotFound += OnNewVersionNotFound;
+                    UpdateChecker.NewVersionFoundFailed += OnNewVersionFoundFailed;
+                    CheckUpdate();
+                }
+                finally
+                {
+                    UpdateChecker.NewVersionNotFound -= OnNewVersionNotFound;
+                    UpdateChecker.NewVersionFoundFailed -= OnNewVersionFoundFailed;
+                }
             });
         }
 
@@ -414,7 +411,7 @@ namespace Netch.Forms
                 await Task.Run(() =>
                 {
                     NativeMethods.FlushDNSResolverCache();
-                    DNS.Cache.Clear();
+                    DnsUtils.ClearCache();
                 });
 
                 NotifyTip(i18N.Translate("DNS cache cleanup succeeded"));
@@ -460,7 +457,7 @@ namespace Netch.Forms
                             Type = 5
                         };
 
-                        await MainController.Start(server, mode);
+                        await MainController.StartAsync(server, mode);
                     }
                 }
 
@@ -479,7 +476,7 @@ namespace Netch.Forms
             finally
             {
                 if (useProxy)
-                    await MainController.Stop();
+                    await MainController.StopAsync();
 
                 StatusText();
                 Enabled = true;
@@ -572,6 +569,47 @@ namespace Netch.Forms
             Utils.Utils.Open($"https://github.com/{UpdateChecker.Owner}/{UpdateChecker.Repo}/releases");
         }
 
+        private async void NewVersionLabel_Click(object sender, EventArgs e)
+        {
+            if (ModifierKeys == Keys.Control || !UpdateChecker.LatestRelease!.assets.Any())
+            {
+                Utils.Utils.Open(UpdateChecker.LatestVersionUrl!);
+                return;
+            }
+
+            if (MessageBoxX.Show(i18N.Translate("Download and install now?"), confirm: true) != DialogResult.OK)
+                return;
+
+            NotifyTip(i18N.Translate("Start downloading new version"));
+            NewVersionLabel.Enabled = false;
+            NewVersionLabel.Text = "...";
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    Updater.Updater.DownloadAndUpdate(Path.Combine(Global.NetchDir, "data"),
+                        Global.NetchDir,
+                        (_, args) => BeginInvoke(new Action(() => NewVersionLabel.Text = $"{args.ProgressPercentage}%")));
+                });
+            }
+            catch (Exception exception)
+            {
+                if (exception is not MessageException)
+                {
+                    Logging.Error($"更新失败: {exception}");
+                    Utils.Utils.Open(Logging.LogFile);
+                }
+
+                NotifyTip(exception.Message, info: false);
+            }
+            finally
+            {
+                NewVersionLabel.Visible = false;
+                NewVersionLabel.Enabled = true;
+            }
+        }
+
         private void AboutToolStripButton_Click(object sender, EventArgs e)
         {
             Hide();
@@ -594,7 +632,7 @@ namespace Netch.Forms
             {
                 // 停止
                 State = State.Stopping;
-                await MainController.Stop();
+                await MainController.StopAsync();
                 State = State.Stopped;
                 return;
             }
@@ -621,7 +659,7 @@ namespace Netch.Forms
 
             try
             {
-                await MainController.Start(server, mode);
+                await MainController.StartAsync(server, mode);
             }
             catch (Exception exception)
             {
@@ -1362,25 +1400,10 @@ namespace Netch.Forms
                     File.Delete(file);
 
             if (!IsWaiting())
-                await MainController.Stop();
+                await MainController.StopAsync();
 
             Dispose();
             Environment.Exit(Environment.ExitCode);
-        }
-
-        private void OnCalled(object sender, OnlyInstance.Commands e)
-        {
-            switch (e)
-            {
-                case OnlyInstance.Commands.Show:
-                    NotifyIcon_MouseDoubleClick(null, null);
-                    break;
-                case OnlyInstance.Commands.Exit:
-                    Exit(true);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(e), e, null);
-            }
         }
 
         #region FormClosingButton
@@ -1409,43 +1432,22 @@ namespace Netch.Forms
 
         private void CheckUpdate()
         {
-            UpdateChecker.NewVersionFound += (_, _) =>
-            {
-                NotifyTip($"{i18N.Translate(@"New version available", ": ")}{UpdateChecker.LatestVersionNumber}");
-                NewVersionLabel.Visible = true;
-            };
-
-            UpdateChecker.Check(Global.Settings.CheckBetaUpdate).Wait();
-        }
-
-        private async void NewVersionLabel_Click(object sender, EventArgs e)
-        {
-            if (ModifierKeys == Keys.Control || !UpdateChecker.LatestRelease!.assets.Any())
-            {
-                Utils.Utils.Open(UpdateChecker.LatestVersionUrl!);
-                return;
-            }
-
-            if (MessageBoxX.Show(i18N.Translate("Download and install now?"), confirm: true) != DialogResult.OK)
-                return;
-
-            NotifyTip(i18N.Translate("Start downloading new version"));
-
-            NewVersionLabel.Enabled = false;
-            NewVersionLabel.Text = "...";
             try
             {
-                void OnDownloadProgressChanged(object o1, DownloadProgressChangedEventArgs args)
-                {
-                    BeginInvoke(new Action(() => { NewVersionLabel.Text = $"{args.ProgressPercentage}%"; }));
-                }
-
-                await Updater.Updater.DownloadAndUpdate(Path.Combine(Global.NetchDir, "data"), Global.NetchDir, OnDownloadProgressChanged);
+                UpdateChecker.NewVersionFound += OnUpdateCheckerOnNewVersionFound;
+                UpdateChecker.Check(Global.Settings.CheckBetaUpdate).Wait();
             }
-            catch (Exception exception)
+            finally
             {
-                Logging.Error(exception.Message);
-                NotifyTip(exception.Message);
+                UpdateChecker.NewVersionFound -= OnUpdateCheckerOnNewVersionFound;
+            }
+
+            void OnUpdateCheckerOnNewVersionFound(object o, EventArgs eventArgs)
+            {
+                NotifyTip($"{i18N.Translate(@"New version available", ": ")}{UpdateChecker.LatestVersionNumber}");
+                NewVersionLabel.Text = i18N.Translate("New version available");
+                NewVersionLabel.Enabled = true;
+                NewVersionLabel.Visible = true;
             }
         }
 

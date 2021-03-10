@@ -45,13 +45,14 @@
         <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
         <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
         <PackageReference Include="System.Reflection.Metadata" Version="5.0.0" />
-        <PackageReference Include="System.Text.Json" Version="5.0.1"/>
+        <PackageReference Include="System.Text.Json" Version="5.0.1" />
         <PackageReference Include="TaskScheduler" Version="2.9.1" />
-        <PackageReference Include="Vanara.PInvoke.IpHlpApi" Version="3.3.4" />
+        <PackageReference Include="Vanara.PInvoke.IpHlpApi" Version="3.3.5" />
         <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.4" />
+        <PackageReference Include="Vanara.PInvoke.User32" Version="3.3.5" />
         <PackageReference Include="WindowsFirewallHelper" Version="2.0.4.70-beta2" />
         <PackageReference Include="WindowsJobAPI" Version="5.0.1" />
-        <PackageReference Include="WindowsProxy" Version="5.0.0" />
+        <PackageReference Include="WindowsProxy" Version="5.0.3" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -101,6 +102,7 @@
             <Generator>ResXFileCodeGenerator</Generator>
             <LastGenOutput>Resources.Designer.cs</LastGenOutput>
         </EmbeddedResource>
+        <EmbeddedResource Remove="Forms\LogForm.resx" />
     </ItemGroup>
 
     <ItemGroup>

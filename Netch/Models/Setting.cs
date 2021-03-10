@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Netch.Utils;
 
 namespace Netch.Models
 {
@@ -157,14 +158,24 @@ namespace Netch.Models
         public int ModeComboBoxSelectedIndex { get; set; } = 0;
 
         /// <summary>
-        ///     要修改为的系统 DNS
+        ///     转发DNS地址
         /// </summary>
-        public string ModifiedDNS { get; set; } = "1.1.1.1,8.8.8.8";
+        public string RedirectDNSAddr { get; set; } = "8.8.8.8";
 
         /// <summary>
-        ///     修改系统 DNS
+        ///     是否开启DNS转发
         /// </summary>
-        public bool ModifySystemDNS { get; set; } = false;
+        public bool RedirectDNS { get; set; } = false;
+
+        /// <summary>
+        ///     转发ICMP地址
+        /// </summary>
+        public string RedirectICMPAddr { get; set; } = "1.2.4.8";
+
+        /// <summary>
+        ///     是否开启ICMP转发
+        /// </summary>
+        public bool RedirectICMP { get; set; } = false;
 
         /// <summary>
         ///     GFWList
@@ -179,12 +190,7 @@ namespace Netch.Models
         /// <summary>
         ///     不代理TCP
         /// </summary>
-        public bool ProcessNoProxyForTcp { get; set; } = false;
-
-        /// <summary>
-        ///     不代理UDP
-        /// </summary>
-        public bool ProcessNoProxyForUdp { get; set; } = false;
+        public PortType ProcessProxyProtocol { get; set; } = PortType.Both;
 
         /// <summary>
         ///     快捷配置数量
@@ -205,6 +211,11 @@ namespace Netch.Models
         ///     是否使用RDR内置SS
         /// </summary>
         public bool RedirectorSS { get; set; } = false;
+
+        /// <summary>
+        ///     是否代理子进程
+        /// </summary>
+        public bool ChildProcessHandle { get; set; } = false;
 
         /// <summary>
         ///     Redirector TCP 占用端口
@@ -275,11 +286,6 @@ namespace Netch.Models
         ///     TUNTAP 适配器配置
         /// </summary>
         public TUNTAPConfig TUNTAP { get; set; } = new();
-
-        /// <summary>
-        ///     UDP Socket 占用端口
-        /// </summary>
-        public ushort UDPSocketPort { get; set; } = 18291;
 
         /// <summary>
         ///     是否打开软件时更新订阅

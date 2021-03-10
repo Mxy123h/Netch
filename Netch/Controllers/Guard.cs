@@ -20,11 +20,12 @@ namespace Netch.Controllers
         private FileStream? _logFileStream;
 
         private StreamWriter? _logStreamWriter;
+        private bool _redirectToFile = true;
 
         /// <summary>
         ///     日志文件(重定向输出文件)
         /// </summary>
-        private string LogPath => Path.Combine(Global.NetchDir, $"logging\\{Name}.log");
+        protected string LogPath => Path.Combine(Global.NetchDir, $"logging\\{Name}.log");
 
         /// <summary>
         ///     成功启动关键词
@@ -49,6 +50,12 @@ namespace Netch.Controllers
         ///     进程是否可以重定向输出
         /// </summary>
         protected bool RedirectStd { get; set; } = true;
+
+        protected bool RedirectToFile
+        {
+            get => RedirectStd && _redirectToFile;
+            set => _redirectToFile = value;
+        }
 
         /// <summary>
         ///     进程实例
@@ -123,18 +130,12 @@ namespace Netch.Controllers
             State = State.Starting;
             // 初始化程序
             InitInstance(argument);
-            Instance!.EnableRaisingEvents = true;
-            if (RedirectStd)
-            {
-                // 清理日志
-                _logFileStream = File.Open(LogPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
-                _logStreamWriter = new StreamWriter(_logFileStream);
-            }
 
-            Instance.Exited += OnExited;
+            if (RedirectToFile)
+                OpenLogFile();
 
             // 启动程序
-            Instance.Start();
+            Instance!.Start();
             if (priority != ProcessPriorityClass.Normal)
                 Instance.PriorityClass = priority;
 
@@ -142,18 +143,15 @@ namespace Netch.Controllers
             {
                 Task.Run(() => ReadOutput(Instance.StandardOutput));
                 Task.Run(() => ReadOutput(Instance.StandardError));
+
+                if (!StartedKeywords.Any())
+                {
+                    State = State.Started;
+                    return;
+                }
             }
             else
             {
-                return;
-            }
-
-            // 启动日志重定向
-            _flushFileStreamTimer.Elapsed += FlushFileStreamTimerEvent;
-            _flushFileStreamTimer.Enabled = true;
-            if (!StartedKeywords.Any())
-            {
-                State = State.Started;
                 return;
             }
 
@@ -164,31 +162,86 @@ namespace Netch.Controllers
                 switch (State)
                 {
                     case State.Started:
+                        Task.Run(OnKeywordStarted);
                         return;
                     case State.Stopped:
                         Stop();
-                        Utils.Utils.Open(LogPath);
+                        CloseLogFile();
+                        OnKeywordStopped();
                         throw new MessageException($"{Name} 控制器启动失败");
                 }
             }
 
             Stop();
+            OnKeywordTimeout();
             throw new MessageException($"{Name} 控制器启动超时");
         }
 
-        private void OnExited(object sender, EventArgs e)
+        #region FileStream
+
+        private void OpenLogFile()
         {
-            State = State.Stopped;
+            if (!RedirectToFile)
+                return;
+
+            _logFileStream = File.Open(LogPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+            _logStreamWriter = new StreamWriter(_logFileStream);
+
+            _flushFileStreamTimer.Elapsed += FlushFileStreamTimerEvent;
+            _flushFileStreamTimer.Enabled = true;
         }
+
+        private void WriteLog(string line)
+        {
+            if (!RedirectToFile)
+                return;
+
+            _logStreamWriter!.WriteLine(line);
+        }
+
+        private void CloseLogFile()
+        {
+            if (!RedirectToFile)
+                return;
+
+            _flushFileStreamTimer.Enabled = false;
+            _logStreamWriter?.Close();
+            _logFileStream?.Close();
+            _logStreamWriter = _logStreamWriter = null;
+        }
+
+        #endregion
+
+        #region virtual
+
+        protected virtual void OnReadNewLine(string line)
+        {
+        }
+
+        protected virtual void OnKeywordStarted()
+        {
+        }
+
+        protected virtual void OnKeywordStopped()
+        {
+            Utils.Utils.Open(LogPath);
+        }
+
+        protected virtual void OnKeywordTimeout()
+        {
+        }
+
+        #endregion
 
         protected void ReadOutput(TextReader reader)
         {
             string? line;
             while ((line = reader.ReadLine()) != null)
             {
-                _logStreamWriter!.WriteLine(line);
+                WriteLog(line);
+                OnReadNewLine(line);
 
-                // 检查启动
+                // State == State.Started if !StartedKeywords.Any() 
                 if (State == State.Starting)
                 {
                     if (StartedKeywords.Any(s => line.Contains(s)))
@@ -198,10 +251,8 @@ namespace Netch.Controllers
                 }
             }
 
-            _flushFileStreamTimer.Enabled = false;
-            _logStreamWriter!.Close();
-            _logFileStream!.Close();
-            _logStreamWriter = _logStreamWriter = null;
+            CloseLogFile();
+            State = State.Stopped;
         }
 
         /// <summary>
