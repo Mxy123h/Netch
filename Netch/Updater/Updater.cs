@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,65 +14,140 @@ namespace Netch.Updater
 {
     public class Updater
     {
-        private static IEnumerable<string> _keepDirectory = new List<string>(new[] {"data", "mode\\Custom"});
-        private readonly string _targetPath;
-        private readonly string _tempFolder;
-        private readonly string _updateFilePath;
+        #region Download Update and apply update
 
-        private Updater(string updateFilePath, string targetPath)
+        /// <summary>
+        ///     Download Update and apply update (all arguments are FullPath)
+        /// </summary>
+        /// <param name="downloadDirectory"></param>
+        /// <param name="installDirectory"></param>
+        /// <param name="onDownloadProgressChanged"></param>
+        /// <param name="keyword"></param>
+        /// <exception cref="MessageException"></exception>
+        public static void DownloadAndUpdate(string downloadDirectory,
+            string installDirectory,
+            DownloadProgressChangedEventHandler onDownloadProgressChanged,
+            string? keyword = null)
         {
-            _targetPath = targetPath;
-            _tempFolder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            Directory.CreateDirectory(_tempFolder);
+            UpdateChecker.GetLatestUpdateFileNameAndHash(out var updateFileName, out var sha256, keyword);
 
-            _updateFilePath = Path.GetFullPath(updateFilePath);
-            _keepDirectory = _keepDirectory.Select(s => Path.Combine(targetPath, s));
+            // update file Full Path
+            var updateFile = Path.Combine(downloadDirectory, updateFileName);
+            var updater = new Updater(updateFile, installDirectory);
+
+            if (File.Exists(updateFile))
+            {
+                if (Utils.Utils.SHA256CheckSum(updateFile) == sha256)
+                {
+                    updater.ApplyUpdate();
+                    return;
+                }
+
+                File.Delete(updateFile);
+            }
+
+            DownloadUpdateFile(onDownloadProgressChanged, updateFile, sha256);
+            updater.ApplyUpdate();
         }
+
+        /// <summary>
+        ///     Download Update File
+        /// </summary>
+        /// <param name="onDownloadProgressChanged"></param>
+        /// <param name="fileFullPath"></param>
+        /// <param name="sha256"></param>
+        /// <exception cref="MessageException"></exception>
+        private static void DownloadUpdateFile(DownloadProgressChangedEventHandler onDownloadProgressChanged, string fileFullPath, string sha256)
+        {
+            using WebClient client = new();
+            try
+            {
+                client.DownloadProgressChanged += onDownloadProgressChanged;
+                client.DownloadFile(new Uri(UpdateChecker.LatestRelease.assets[0].browser_download_url), fileFullPath);
+            }
+            finally
+            {
+                client.DownloadProgressChanged -= onDownloadProgressChanged;
+            }
+
+            if (Utils.Utils.SHA256CheckSum(fileFullPath) != sha256)
+                throw new MessageException(i18N.Translate("The downloaded file has the wrong hash"));
+        }
+
+        #endregion
+
+        private readonly string _updateFile;
+        private readonly string _installDirectory;
+        private readonly string _tempDirectory;
+
+        private Updater(string updateFile, string installDirectory)
+        {
+            _updateFile = updateFile;
+            _installDirectory = installDirectory;
+            _tempDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+            Directory.CreateDirectory(_tempDirectory);
+        }
+
+        #region Apply Update
+
+        private static readonly ImmutableArray<string> KeepDirectories = new List<string> {"data", "mode\\Custom"}.ToImmutableArray();
 
         private void ApplyUpdate()
         {
-            var extractPath = Path.Combine(_tempFolder, "extract");
+            // extract Update file to {tempDirectory}\extract
+            var extractPath = Path.Combine(_tempDirectory, "extract");
             int exitCode;
             if ((exitCode = Extract(extractPath, true)) != 0)
                 throw new Exception(i18N.Translate($"7za exit with code {exitCode}"));
 
+            // rename install directory files with .old suffix unless in keep folders
             MarkFilesOld();
 
-            MoveAllFilesOver(Path.Combine(extractPath, "Netch"), _targetPath);
+            // move {tempDirectory}\extract\Netch to install folder
+            MoveAllFilesOver(Path.Combine(extractPath, "Netch"), _installDirectory);
 
+            // save, release mutex, then exit
             Configuration.Save();
-            Global.Mutex.ReleaseMutex();
+            Global.MainForm.Invoke(new Action(() => { Global.Mutex.ReleaseMutex(); }));
             Process.Start(Global.NetchExecutable);
             Global.MainForm.Exit(true, false);
         }
 
         private void MarkFilesOld()
         {
-            foreach (var file in Directory.GetFiles(_targetPath, "*", SearchOption.AllDirectories))
+            // extend keepDirectories relative path to absolute path
+            var extendedKeepDirectories = KeepDirectories.Select(d => Path.Combine(_installDirectory, d)).ToImmutableArray();
+
+            // weed out keep files
+            List<string> filesToDelete = new();
+            foreach (var file in Directory.GetFiles(_installDirectory, "*", SearchOption.AllDirectories))
             {
-                if (_keepDirectory.Any(p => file.StartsWith(p)))
+                if (extendedKeepDirectories.Any(p => file.StartsWith(p)))
                     continue;
 
-                try
-                {
-                    File.Move(file, file + ".old");
-                }
-                catch
-                {
-                    throw new Exception("Updater wasn't able to rename file: " + file);
-                }
+                if (Path.GetFileName(file) is ModeHelper.DISABLE_MODE_DIRECTORY_FILENAME)
+                    continue;
+
+                filesToDelete.Add(file);
             }
+
+            // rename files
+            foreach (var file in filesToDelete)
+                File.Move(file, file + ".old");
         }
 
         private int Extract(string destDirName, bool overwrite)
         {
-            var temp7za = Path.Combine(_tempFolder, "7za.exe");
+            // release 7za.exe to {tempDirectory}\7za.exe
+            var temp7za = Path.Combine(_tempDirectory, "7za.exe");
 
             if (!File.Exists(temp7za))
                 File.WriteAllBytes(temp7za, Resources._7za);
 
+            // run 7za
             var argument = new StringBuilder();
-            argument.Append($" x \"{_updateFilePath}\" -o\"{destDirName}\"");
+            argument.Append($" x \"{_updateFile}\" -o\"{destDirName}\"");
             if (overwrite)
                 argument.Append(" -y");
 
@@ -107,6 +183,10 @@ namespace Netch.Updater
             }
         }
 
+        #endregion
+
+        #region Clean files marked as old when start
+
         public static void CleanOld(string targetPath)
         {
             foreach (var f in Directory.GetFiles(targetPath, "*.old", SearchOption.AllDirectories))
@@ -120,47 +200,6 @@ namespace Netch.Updater
                 }
         }
 
-        public static void DownloadAndUpdate(string downloadPath,
-            string targetPath,
-            DownloadProgressChangedEventHandler onDownloadProgressChanged,
-            string? keyword = null)
-        {
-            if (!UpdateChecker.GetFileNameAndHashFromMarkdownForm(UpdateChecker.LatestRelease.body, out var fileName, out var sha256, keyword))
-                throw new MessageException(i18N.Translate("parse release note failed"));
-
-            var fileFullPath = Path.Combine(downloadPath, fileName);
-            var updater = new Updater(fileFullPath, targetPath);
-
-            if (File.Exists(fileFullPath))
-            {
-                if (Utils.Utils.SHA256CheckSum(fileFullPath) == sha256)
-                {
-                    updater.ApplyUpdate();
-                    return;
-                }
-
-                File.Delete(fileFullPath);
-            }
-
-            DownloadUpdate(onDownloadProgressChanged, fileFullPath, sha256);
-            updater.ApplyUpdate();
-        }
-
-        private static void DownloadUpdate(DownloadProgressChangedEventHandler onDownloadProgressChanged, string fileFullPath, string sha256)
-        {
-            using WebClient client = new();
-            try
-            {
-                client.DownloadProgressChanged += onDownloadProgressChanged;
-                client.DownloadFile(new Uri(UpdateChecker.LatestRelease.assets[0].browser_download_url), fileFullPath);
-            }
-            finally
-            {
-                client.DownloadProgressChanged -= onDownloadProgressChanged;
-            }
-
-            if (Utils.Utils.SHA256CheckSum(fileFullPath) != sha256)
-                throw new MessageException(i18N.Translate("The downloaded file has the wrong hash"));
-        }
+        #endregion
     }
 }
